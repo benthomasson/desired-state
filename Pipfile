@@ -7,6 +7,8 @@ verify_ssl = true
 pytest = "*"
 
 [packages]
+deepdiff = "*"
+murmurhash3 = "*"
 
 [requires]
 python_version = "3.8"
