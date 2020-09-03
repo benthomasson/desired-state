@@ -18,6 +18,8 @@ twine = "==1.14.0"
 pytest = "==4.6.5"
 pytest-runner = "==5.1"
 Sphinx = "==1.8.5"
+gevent-fsm = "*"
+pyzmq = "*"
 
 [requires]
 python_version = "3.8"
