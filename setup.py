@@ -45,4 +45,9 @@ setup(
     url='https://github.com/benthomasson/ansible_state',
     version='0.1.0',
     zip_safe=False,
+    entry_points={
+        'console_scripts': [
+            'ansible-state = ansible_state.cli:main',
+        ],
+    }
 )
