@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e136ea1a2ecff941a50fbb32fcada00b8be92095b9c31146ad4f0c3916a080f1"
+            "sha256": "ae1c2d9ee3033a731a1f348ee2059ebdd47acff7041415b57a195b49b9a8acea"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -603,6 +603,14 @@
             "index": "pypi",
             "version": "==0.9.0"
         },
+        "watchdog-gevent": {
+            "hashes": [
+                "sha256:71dced5ec451b3deafd1dc73baaf52a7ce4d54d9a1eb606f9370235125f2424a",
+                "sha256:dcebd07668b472790ad0e7a7b40ad8c365e156c40cf54ffd5499c65c65c4f66f"
+            ],
+            "index": "pypi",
+            "version": "==0.1.1"
+        },
         "wcwidth": {
             "hashes": [
                 "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784",
@@ -687,6 +695,13 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==20.1.0"
+        },
+        "autopep8": {
+            "hashes": [
+                "sha256:d21d3901cb0da6ebd1e83fc9b0dfbde8b46afc2ede4fe32fbda0c7c6118ca094"
+            ],
+            "index": "pypi",
+            "version": "==1.5.4"
         },
         "flake8": {
             "hashes": [
