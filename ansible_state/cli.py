@@ -22,23 +22,46 @@ from docopt import docopt
 import logging
 import os
 import sys
+import yaml
 from watchdog.observers import Observer
+from watchdog.events import FileCreatedEvent, FileModifiedEvent
+from deepdiff import DeepDiff
 
 logger = logging.getLogger('cli')
 
 
-class PrintHandler:
+class DiffHandler:
+
+    def __init__(self, path):
+        self.path = os.path.abspath(os.path.expanduser(path))
+        self.dir_path = os.path.dirname(self.path)
+        with open(self.path) as f:
+            self.current_state = yaml.safe_load(f.read())
 
     def dispatch(self, event):
         print(event)
+        print(type(event))
+        print(event.src_path)
+        if isinstance(event, FileCreatedEvent) and event.src_path == self.path:
+            print('created')
+            self.diff()
+        if isinstance(event, FileModifiedEvent) and event.src_path == self.path:
+            print('modified')
+            self.diff()
 
-
-event_handler = PrintHandler()
+    def diff(self):
+        with open(self.path) as f:
+            new_state = yaml.safe_load(f.read())
+        print(self.current_state)
+        print(new_state)
+        print(DeepDiff(self.current_state, new_state))
 
 
 def watch_files(path):
+    event_handler = DiffHandler(path)
     observer = Observer()
-    observer.schedule(event_handler, path, recursive=True)
+    dir_path = os.path.dirname(os.path.abspath(path))
+    observer.schedule(event_handler, dir_path, recursive=True)
     observer.start()
     observer.join()
 
@@ -64,7 +87,7 @@ def ansible_state_run(parsed_args):
 
     threads = []
 
-    threads.append(gevent.spawn(watch_files, os.path.dirname(os.path.abspath(parsed_args['<state.yml>']))))
+    threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<state.yml>']))))
 
     print(threads)
 
