@@ -12,25 +12,25 @@ Options:
 
 from gevent import monkey
 monkey.patch_all()
+import gevent
+from docopt import docopt
+from gevent.queue import Queue
+import json
+import os
+import sys
+import yaml
+import tempfile
+import pprint
+from watchdog_gevent import Observer
+from watchdog.events import FileCreatedEvent, FileModifiedEvent
+from deepdiff import DeepDiff
+import ansible_runner
 import logging
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
 logging.debug('Loading runner')
-import ansible_runner
 logging.debug('Loaded runner')
-from deepdiff import DeepDiff
-from watchdog.events import FileCreatedEvent, FileModifiedEvent
-from watchdog_gevent import Observer
-import pprint
-import tempfile
-import yaml
-import sys
-import os
-import json
-from gevent.queue import Queue
-from docopt import docopt
-import gevent
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_fsm.log', level=logging.DEBUG, format=FORMAT)  # noqa
@@ -46,40 +46,64 @@ def ensure_directory(d):
 
 class PlaybookRunner:
 
-    def __init__(self):
+    def __init__(self, new_desired_state, state_diff):
         print('PlaybookRunner')
-        self.default_inventory = "[all]\nlocalhost ansible_connection=local\n"
-        self.default_play = yaml.dump(dict(hosts='localhost',
-                                           name='default',
-                                           gather_facts=False))
+        self.new_desired_state = new_desired_state
+        self.state_diff = state_diff
+        self.inventory = "[all]\nlocalhost ansible_connection=local\n"
+        self.play = dict(hosts='localhost',
+                         name='default',
+                         gather_facts=False,
+                         tasks=[])
         self.runner_thread = None
         self.shutdown_requested = False
         self.shutdown = False
+
+        self.build_project_directory()
+        self.write_settings()
+        self.write_state_vars()
+        self.add_debug()
+        self.write_playbook()
+        self.write_inventory()
+        self.start_ansible_playbook()
+
+    def build_project_directory(self):
         self.temp_dir = tempfile.mkdtemp(prefix="ansible_state_playbook")
         print(self.temp_dir)
         ensure_directory(os.path.join(self.temp_dir, 'env'))
         ensure_directory(os.path.join(self.temp_dir, 'project'))
         ensure_directory(os.path.join(self.temp_dir, 'project', 'roles'))
+
+    def write_settings(self):
         with open(os.path.join(self.temp_dir, 'env', 'settings'), 'w') as f:
             f.write(json.dumps(dict(idle_timeout=0,
                                     job_timeout=0)))
+
+    def write_playbook(self):
         self.playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
         playbook = []
-        current_play = yaml.load(self.default_play, Loader=yaml.FullLoader)
+        current_play = self.play
         playbook.append(current_play)
         with open(self.playbook_file, 'w') as f:
             f.write(yaml.safe_dump(playbook, default_flow_style=False))
-        self.write_inventory(self.default_inventory)
-        self.start_ansible_playbook()
 
-    def write_inventory(self, inventory):
-        print("inventory set to %s", inventory)
+    def add_debug(self):
+        self.play['tasks'].append({'debug': {'msg': '{{hosts}}'}})
+
+    def write_state_vars(self):
+        state_vars_file = os.path.join(self.temp_dir, 'project', 'state_vars.yml')
+        with open(state_vars_file, 'w') as f:
+            f.write(yaml.safe_dump(self.new_desired_state, default_flow_style=False))
+        self.play['tasks'].append({'include_vars': {'file': 'state_vars.yml'}})
+
+    def write_inventory(self):
+        print("inventory set to %s", self.inventory)
         with open(os.path.join(self.temp_dir, 'inventory'), 'w') as f:
-            f.write("\n".join(inventory.splitlines()[1:]))
+            f.write("\n".join(self.inventory.splitlines()[1:]))
 
     def start_ansible_playbook(self):
         print('start_ansible_playbook')
-        #self.runner_thread = gevent.spawn(ansible_runner.run,
+        # self.runner_thread = gevent.spawn(ansible_runner.run,
         #                                  private_data_dir=self.temp_dir,
         #                                  playbook="playbook.yml",
         #                                  quiet=True,
@@ -117,8 +141,8 @@ class DiffHandler:
         self.path = os.path.abspath(os.path.expanduser(path))
         self.dir_path = os.path.dirname(self.path)
         with open(self.path) as f:
-            self.current_state = yaml.safe_load(f.read())
-        pprint.pprint(self.current_state)
+            self.current_desired_state = yaml.safe_load(f.read())
+        pprint.pprint(self.current_desired_state)
 
     def recieve_messages(self):
         print('recieve_messages')
@@ -136,13 +160,16 @@ class DiffHandler:
     def diff(self):
         print('diff')
         with open(self.path) as f:
-            new_state = yaml.safe_load(f.read())
-        print(self.current_state)
-        print(new_state)
-        print(DeepDiff(self.current_state, new_state))
-        if DeepDiff(self.current_state, new_state):
-            PlaybookRunner()
-            self.current_state = new_state
+            new_desired_state = yaml.safe_load(f.read())
+        print(self.current_desired_state)
+        print(new_desired_state)
+        print(DeepDiff(self.current_desired_state, new_desired_state))
+        state_diff = DeepDiff(self.current_desired_state, new_desired_state)
+        if state_diff:
+            # v0 execute ansible to resolve the desired state by running a playbook
+            PlaybookRunner(new_desired_state, state_diff)
+            # v0 assume that the state was set correctly
+            self.current_desired_state = new_desired_state
 
 
 class FileWatcher:
