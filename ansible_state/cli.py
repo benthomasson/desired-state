@@ -135,6 +135,8 @@ class DiffHandler:
         with open(self.state_path) as f:
             self.current_desired_state = yaml.safe_load(f.read())
         with open(self.playbook_path) as f:
+            self.original_playbook = yaml.safe_load(f.read())
+        with open(self.playbook_path) as f:
             self.current_playbook = yaml.safe_load(f.read())
         pprint.pprint(self.current_desired_state)
         pprint.pprint(self.current_playbook)
@@ -166,12 +168,15 @@ class DiffHandler:
             new_playbook = yaml.safe_load(f.read())
         print(self.current_desired_state)
         print(new_desired_state)
-        print(DeepDiff(self.current_desired_state, new_desired_state))
-        state_diff = DeepDiff(self.current_desired_state, new_desired_state)
-        playbook_diff = DeepDiff(self.current_playbook, new_playbook)
-        if state_diff or playbook_diff:
+        state_diff = dict(DeepDiff(self.current_desired_state, new_desired_state))
+        playbook_diff = dict(DeepDiff(self.original_playbook, new_playbook))
+        if len(state_diff):
+            print('state_diff')
+        if len(playbook_diff):
+            print('playbook_diff')
+        if len(state_diff) or len(playbook_diff):
             # v0 execute ansible to resolve the desired state by running a playbook
-            self.current_playbook = new_playbook
+            self.original_playbook = new_playbook
             PlaybookRunner(new_desired_state, state_diff, self.current_playbook)
             # v0 assume that the state was set correctly
             self.current_desired_state = new_desired_state
