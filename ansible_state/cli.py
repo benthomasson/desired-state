@@ -2,7 +2,7 @@
 
 """
 Usage:
-    ansible-state [options] run <state.yml>
+    ansible-state [options] run <state.yml> <playbook.yml>
 
 Options:
     -h, --help       Show this page
@@ -46,15 +46,12 @@ def ensure_directory(d):
 
 class PlaybookRunner:
 
-    def __init__(self, new_desired_state, state_diff):
+    def __init__(self, new_desired_state, state_diff, playbook):
         print('PlaybookRunner')
         self.new_desired_state = new_desired_state
         self.state_diff = state_diff
         self.inventory = "[all]\nlocalhost ansible_connection=local\n"
-        self.play = dict(hosts='localhost',
-                         name='default',
-                         gather_facts=False,
-                         tasks=[])
+        self.playbook = playbook
         self.runner_thread = None
         self.shutdown_requested = False
         self.shutdown = False
@@ -62,7 +59,6 @@ class PlaybookRunner:
         self.build_project_directory()
         self.write_settings()
         self.write_state_vars()
-        self.add_debug()
         self.write_playbook()
         self.write_inventory()
         self.start_ansible_playbook()
@@ -81,20 +77,16 @@ class PlaybookRunner:
 
     def write_playbook(self):
         self.playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
-        playbook = []
-        current_play = self.play
-        playbook.append(current_play)
+        playbook = self.playbook
         with open(self.playbook_file, 'w') as f:
             f.write(yaml.safe_dump(playbook, default_flow_style=False))
-
-    def add_debug(self):
-        self.play['tasks'].append({'debug': {'msg': '{{hosts}}'}})
 
     def write_state_vars(self):
         state_vars_file = os.path.join(self.temp_dir, 'project', 'state_vars.yml')
         with open(state_vars_file, 'w') as f:
             f.write(yaml.safe_dump(self.new_desired_state, default_flow_style=False))
-        self.play['tasks'].append({'include_vars': {'file': 'state_vars.yml'}})
+        for play in self.playbook:
+            play['tasks'].insert(0, {'include_vars': {'file': 'state_vars.yml', 'name': 'state'}})
 
     def write_inventory(self):
         print("inventory set to %s", self.inventory)
@@ -136,13 +128,16 @@ class PlaybookRunner:
 
 class DiffHandler:
 
-    def __init__(self, path, queue):
+    def __init__(self, state_path, playbook_path, queue):
         self.queue = queue
-        self.path = os.path.abspath(os.path.expanduser(path))
-        self.dir_path = os.path.dirname(self.path)
-        with open(self.path) as f:
+        self.state_path = state_path
+        self.playbook_path = playbook_path
+        with open(self.state_path) as f:
             self.current_desired_state = yaml.safe_load(f.read())
+        with open(self.playbook_path) as f:
+            self.current_playbook = yaml.safe_load(f.read())
         pprint.pprint(self.current_desired_state)
+        pprint.pprint(self.current_playbook)
 
     def recieve_messages(self):
         print('recieve_messages')
@@ -150,24 +145,34 @@ class DiffHandler:
             self.dispatch(self.queue.get())
 
     def dispatch(self, event):
-        if isinstance(event, FileCreatedEvent) and event.src_path == self.path:
+        if isinstance(event, FileCreatedEvent) and event.src_path == self.state_path:
             print('created')
             self.diff()
-        if isinstance(event, FileModifiedEvent) and event.src_path == self.path:
+        elif isinstance(event, FileModifiedEvent) and event.src_path == self.state_path:
+            print('modified')
+            self.diff()
+        if isinstance(event, FileCreatedEvent) and event.src_path == self.playbook_path:
+            print('created')
+            self.diff()
+        elif isinstance(event, FileModifiedEvent) and event.src_path == self.playbook_path:
             print('modified')
             self.diff()
 
     def diff(self):
         print('diff')
-        with open(self.path) as f:
+        with open(self.state_path) as f:
             new_desired_state = yaml.safe_load(f.read())
+        with open(self.playbook_path) as f:
+            new_playbook = yaml.safe_load(f.read())
         print(self.current_desired_state)
         print(new_desired_state)
         print(DeepDiff(self.current_desired_state, new_desired_state))
         state_diff = DeepDiff(self.current_desired_state, new_desired_state)
-        if state_diff:
+        playbook_diff = DeepDiff(self.current_playbook, new_playbook)
+        if state_diff or playbook_diff:
             # v0 execute ansible to resolve the desired state by running a playbook
-            PlaybookRunner(new_desired_state, state_diff)
+            self.current_playbook = new_playbook
+            PlaybookRunner(new_desired_state, state_diff, self.current_playbook)
             # v0 assume that the state was set correctly
             self.current_desired_state = new_desired_state
 
@@ -218,9 +223,12 @@ def ansible_state_run(parsed_args):
 
     queue = Queue()
 
-    diff_handler = DiffHandler(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])), queue)
+    diff_handler = DiffHandler(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])),
+                               os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])),
+                               queue)
 
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])), queue))
+    threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])), queue))
     threads.append(gevent.spawn(diff_handler.recieve_messages))
 
     print(threads)
