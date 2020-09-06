@@ -2,7 +2,8 @@
 
 """
 Usage:
-    ansible-state [options] run <state.yml> <playbook.yml>
+    ansible-state [options] init <state.yml> <playbook.yml>
+    ansible-state [options] watch [--init] <state.yml> <playbook.yml>
 
 Options:
     -h, --help       Show this page
@@ -12,20 +13,20 @@ Options:
 
 from gevent import monkey
 monkey.patch_all()
-import gevent
-from docopt import docopt
-from gevent.queue import Queue
-import json
-import os
-import sys
-import yaml
-import tempfile
-import pprint
-from watchdog_gevent import Observer
-from watchdog.events import FileCreatedEvent, FileModifiedEvent
-from deepdiff import DeepDiff
-import ansible_runner
 import logging
+import ansible_runner
+from deepdiff import DeepDiff
+from watchdog.events import FileCreatedEvent, FileModifiedEvent
+from watchdog_gevent import Observer
+import pprint
+import tempfile
+import yaml
+import sys
+import os
+import json
+from gevent.queue import Queue
+from docopt import docopt
+import gevent
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
@@ -44,12 +45,19 @@ def ensure_directory(d):
         os.mkdir(d)
 
 
+def convert_diff(diff):
+
+    if 'dictionary_item_added' in diff:
+        diff['dictionary_item_added'] = [str(x) for x in diff['dictionary_item_added']]
+    return diff
+
+
 class PlaybookRunner:
 
     def __init__(self, new_desired_state, state_diff, playbook):
         print('PlaybookRunner')
         self.new_desired_state = new_desired_state
-        self.state_diff = state_diff
+        self.state_diff = convert_diff(state_diff)
         self.inventory = "[all]\nlocalhost ansible_connection=local\n"
         self.playbook = playbook
         self.runner_thread = None
@@ -59,6 +67,7 @@ class PlaybookRunner:
         self.build_project_directory()
         self.write_settings()
         self.write_state_vars()
+        self.write_diff_vars()
         self.write_playbook()
         self.write_inventory()
         self.start_ansible_playbook()
@@ -87,6 +96,13 @@ class PlaybookRunner:
             f.write(yaml.safe_dump(self.new_desired_state, default_flow_style=False))
         for play in self.playbook:
             play['tasks'].insert(0, {'include_vars': {'file': 'state_vars.yml', 'name': 'state'}})
+
+    def write_diff_vars(self):
+        diff_vars_file = os.path.join(self.temp_dir, 'project', 'diff_vars.yml')
+        with open(diff_vars_file, 'w') as f:
+            f.write(yaml.safe_dump(self.state_diff, default_flow_style=False))
+        for play in self.playbook:
+            play['tasks'].insert(0, {'include_vars': {'file': 'diff_vars.yml', 'name': 'diff'}})
 
     def write_inventory(self):
         print("inventory set to %s", self.inventory)
@@ -123,7 +139,8 @@ class PlaybookRunner:
         self.shutdown = True
 
     def runner_process_message(self, data):
-        print("runner message:\n{}".format(pprint.pformat(data)))
+        # print("runner message:\n{}".format(pprint.pformat(data)))
+        print(data.get('stdout', ''))
 
 
 class DiffHandler:
@@ -171,9 +188,9 @@ class DiffHandler:
         state_diff = dict(DeepDiff(self.current_desired_state, new_desired_state))
         playbook_diff = dict(DeepDiff(self.original_playbook, new_playbook))
         if len(state_diff):
-            print('state_diff')
+            print('state_diff', state_diff)
         if len(playbook_diff):
-            print('playbook_diff')
+            print('playbook_diff', playbook_diff)
         if len(state_diff) or len(playbook_diff):
             # v0 execute ansible to resolve the desired state by running a playbook
             self.original_playbook = new_playbook
@@ -216,13 +233,29 @@ def main(args=None):
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    if parsed_args['run']:
-        return ansible_state_run(parsed_args)
+    if parsed_args['init']:
+        return ansible_state_init(parsed_args)
+    elif parsed_args['watch']:
+        return ansible_state_watch(parsed_args)
     else:
         assert False, 'Update the docopt'
 
 
-def ansible_state_run(parsed_args):
+def ansible_state_init(parsed_args):
+
+    with open(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>']))) as f:
+        state = yaml.safe_load(f.read())
+
+    with open(os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>']))) as f:
+        playbook = yaml.safe_load(f.read())
+
+    PlaybookRunner(state, {}, playbook)
+
+
+def ansible_state_watch(parsed_args):
+
+    if parsed_args['--init']:
+        ansible_state_init(parsed_args)
 
     threads = []
 
