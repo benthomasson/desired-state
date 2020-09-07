@@ -111,7 +111,7 @@ class PlaybookRunner:
 
     def write_passwords(self):
         with open(os.path.join(self.temp_dir, 'env', 'passwords'), 'w') as f:
-            f.write("""---\n"SUDO password:": "{0}"\n...""".format(self.secrets['become']))
+            f.write("""---\n"SUDO password:": "{0}"\nBECOME password: "{0}"\n...""".format(self.secrets['become']))
 
     def write_playbook(self):
         self.playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
