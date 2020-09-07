@@ -9,6 +9,7 @@ Options:
     -h, --help       Show this page
     --debug          Show debug logging
     --verbose        Show verbose logging
+    --ask-become-pass       Ask for the become password
 """
 
 from gevent import monkey
@@ -24,6 +25,8 @@ import yaml
 import sys
 import os
 import json
+from collections import defaultdict
+from getpass import getpass
 from gevent.queue import Queue
 from docopt import docopt
 import gevent
@@ -54,8 +57,9 @@ def convert_diff(diff):
 
 class PlaybookRunner:
 
-    def __init__(self, new_desired_state, state_diff, playbook):
+    def __init__(self, new_desired_state, state_diff, playbook, secrets):
         print('PlaybookRunner')
+        self.secrets = secrets
         self.new_desired_state = new_desired_state
         self.state_diff = convert_diff(state_diff)
         self.inventory = "[all]\nlocalhost ansible_connection=local\n"
@@ -66,6 +70,8 @@ class PlaybookRunner:
 
         self.build_project_directory()
         self.write_settings()
+        self.write_cmdline()
+        self.write_passwords()
         self.write_state_vars()
         self.write_diff_vars()
         self.write_playbook()
@@ -83,6 +89,14 @@ class PlaybookRunner:
         with open(os.path.join(self.temp_dir, 'env', 'settings'), 'w') as f:
             f.write(json.dumps(dict(idle_timeout=0,
                                     job_timeout=0)))
+
+    def write_cmdline(self):
+        with open(os.path.join(self.temp_dir, 'env', 'cmdline'), 'w') as f:
+            f.write("--ask-become-pass -v")
+
+    def write_passwords(self):
+        with open(os.path.join(self.temp_dir, 'env', 'passwords'), 'w') as f:
+            f.write("""---\n"SUDO password:": "{0}"\n...""".format(self.secrets['become']))
 
     def write_playbook(self):
         self.playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
@@ -145,10 +159,11 @@ class PlaybookRunner:
 
 class DiffHandler:
 
-    def __init__(self, state_path, playbook_path, queue):
+    def __init__(self, state_path, playbook_path, queue, secrets):
         self.queue = queue
         self.state_path = state_path
         self.playbook_path = playbook_path
+        self.secrets = secrets
         with open(self.state_path) as f:
             self.current_desired_state = yaml.safe_load(f.read())
         with open(self.playbook_path) as f:
@@ -194,7 +209,7 @@ class DiffHandler:
         if len(state_diff) or len(playbook_diff):
             # v0 execute ansible to resolve the desired state by running a playbook
             self.original_playbook = new_playbook
-            PlaybookRunner(new_desired_state, state_diff, self.current_playbook)
+            PlaybookRunner(new_desired_state, state_diff, self.current_playbook, self.secrets)
             # v0 assume that the state was set correctly
             self.current_desired_state = new_desired_state
 
@@ -241,7 +256,13 @@ def main(args=None):
         assert False, 'Update the docopt'
 
 
-def ansible_state_init(parsed_args):
+
+def ansible_state_init(parsed_args, secrets=None):
+
+    secrets = secrets or defaultdict(str)
+
+    if parsed_args['--ask-become-pass'] and not secrets['become']:
+        secrets['become'] = getpass()
 
     with open(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>']))) as f:
         state = yaml.safe_load(f.read())
@@ -249,13 +270,18 @@ def ansible_state_init(parsed_args):
     with open(os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>']))) as f:
         playbook = yaml.safe_load(f.read())
 
-    PlaybookRunner(state, {}, playbook)
+    PlaybookRunner(state, {}, playbook, secrets)
 
 
 def ansible_state_watch(parsed_args):
 
+    secrets = defaultdict(str)
+
+    if parsed_args['--ask-become-pass']:
+        secrets['become'] = getpass()
+
     if parsed_args['--init']:
-        ansible_state_init(parsed_args)
+        ansible_state_init(parsed_args, secrets)
 
     threads = []
 
@@ -263,7 +289,8 @@ def ansible_state_watch(parsed_args):
 
     diff_handler = DiffHandler(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])),
                                os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])),
-                               queue)
+                               queue,
+                               secrets)
 
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])), queue))
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])), queue))
