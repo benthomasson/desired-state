@@ -6,10 +6,11 @@ Usage:
     ansible-state [options] watch [--init] <state.yml> <playbook.yml>
 
 Options:
-    -h, --help       Show this page
-    --debug          Show debug logging
-    --verbose        Show verbose logging
+    -h, --help              Show this page
+    --debug                 Show debug logging
+    --verbose               Show verbose logging
     --ask-become-pass       Ask for the become password
+    --project-src=<d>       Copy project files this directory [default: .]
 """
 
 from gevent import monkey
@@ -30,6 +31,7 @@ from getpass import getpass
 from gevent.queue import Queue
 from docopt import docopt
 import gevent
+import shutil
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
@@ -57,9 +59,10 @@ def convert_diff(diff):
 
 class PlaybookRunner:
 
-    def __init__(self, new_desired_state, state_diff, playbook, secrets):
+    def __init__(self, new_desired_state, state_diff, playbook, secrets, project_src):
         print('PlaybookRunner')
         self.secrets = secrets
+        self.project_src = project_src
         self.new_desired_state = new_desired_state
         self.state_diff = convert_diff(state_diff)
         self.inventory = "[all]\nlocalhost ansible_connection=local\n"
@@ -69,6 +72,7 @@ class PlaybookRunner:
         self.shutdown = False
 
         self.build_project_directory()
+        self.copy_files()
         self.write_settings()
         self.write_cmdline()
         self.write_passwords()
@@ -84,6 +88,17 @@ class PlaybookRunner:
         ensure_directory(os.path.join(self.temp_dir, 'env'))
         ensure_directory(os.path.join(self.temp_dir, 'project'))
         ensure_directory(os.path.join(self.temp_dir, 'project', 'roles'))
+
+    def copy_files(self):
+        src = os.path.abspath(self.project_src)
+        dest = os.path.join(self.temp_dir, 'project')
+        src_files = os.listdir(src)
+        for file_name in src_files:
+            full_file_name = os.path.join(src, file_name)
+            if (os.path.isfile(full_file_name)):
+                shutil.copy(full_file_name, dest)
+            if (os.path.isdir(full_file_name)):
+                shutil.copytree(full_file_name, os.path.join(dest, file_name))
 
     def write_settings(self):
         with open(os.path.join(self.temp_dir, 'env', 'settings'), 'w') as f:
@@ -159,11 +174,12 @@ class PlaybookRunner:
 
 class DiffHandler:
 
-    def __init__(self, state_path, playbook_path, queue, secrets):
+    def __init__(self, state_path, playbook_path, queue, secrets, project_src):
         self.queue = queue
         self.state_path = state_path
         self.playbook_path = playbook_path
         self.secrets = secrets
+        self.project_src = project_src
         with open(self.state_path) as f:
             self.current_desired_state = yaml.safe_load(f.read())
         with open(self.playbook_path) as f:
@@ -198,6 +214,8 @@ class DiffHandler:
             new_desired_state = yaml.safe_load(f.read())
         with open(self.playbook_path) as f:
             new_playbook = yaml.safe_load(f.read())
+        with open(self.playbook_path) as f:
+            current_playbook = yaml.safe_load(f.read())
         print(self.current_desired_state)
         print(new_desired_state)
         state_diff = dict(DeepDiff(self.current_desired_state, new_desired_state))
@@ -209,7 +227,7 @@ class DiffHandler:
         if len(state_diff) or len(playbook_diff):
             # v0 execute ansible to resolve the desired state by running a playbook
             self.original_playbook = new_playbook
-            PlaybookRunner(new_desired_state, state_diff, self.current_playbook, self.secrets)
+            PlaybookRunner(new_desired_state, state_diff, self.current_playbook, self.secrets, self.project_src)
             # v0 assume that the state was set correctly
             self.current_desired_state = new_desired_state
 
@@ -270,7 +288,9 @@ def ansible_state_init(parsed_args, secrets=None):
     with open(os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>']))) as f:
         playbook = yaml.safe_load(f.read())
 
-    PlaybookRunner(state, {}, playbook, secrets)
+    project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
+
+    PlaybookRunner(state, {}, playbook, secrets, project_src)
 
 
 def ansible_state_watch(parsed_args):
@@ -283,6 +303,8 @@ def ansible_state_watch(parsed_args):
     if parsed_args['--init']:
         ansible_state_init(parsed_args, secrets)
 
+    project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
+
     threads = []
 
     queue = Queue()
@@ -290,7 +312,8 @@ def ansible_state_watch(parsed_args):
     diff_handler = DiffHandler(os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])),
                                os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])),
                                queue,
-                               secrets)
+                               secrets,
+                               project_src)
 
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])), queue))
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])), queue))
