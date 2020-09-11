@@ -22,6 +22,7 @@ Sphinx = "==1.8.5"
 gevent-fsm = "*"
 pyzmq = "*"
 watchdog-gevent = "*"
+ansible = "*"
 
 [requires]
 python_version = "3.8"
