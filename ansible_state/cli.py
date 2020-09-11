@@ -11,6 +11,7 @@ Options:
     --verbose               Show verbose logging
     --ask-become-pass       Ask for the become password
     --project-src=<d>       Copy project files this directory [default: .]
+    --inventory=<i>         Inventory to use
 """
 
 from gevent import monkey
@@ -59,13 +60,13 @@ def convert_diff(diff):
 
 class PlaybookRunner:
 
-    def __init__(self, new_desired_state, state_diff, playbook, secrets, project_src):
+    def __init__(self, new_desired_state, state_diff, playbook, secrets, project_src, inventory):
         print('PlaybookRunner')
+        self.inventory = inventory
         self.secrets = secrets
         self.project_src = project_src
         self.new_desired_state = new_desired_state
         self.state_diff = convert_diff(state_diff)
-        self.inventory = "[all]\nlocalhost ansible_connection=local\n"
         self.playbook = playbook
         self.runner_thread = None
         self.shutdown_requested = False
@@ -136,7 +137,7 @@ class PlaybookRunner:
     def write_inventory(self):
         print("inventory set to %s", self.inventory)
         with open(os.path.join(self.temp_dir, 'inventory'), 'w') as f:
-            f.write("\n".join(self.inventory.splitlines()[1:]))
+            f.write(self.inventory)
 
     def start_ansible_playbook(self):
         print('start_ansible_playbook')
@@ -158,6 +159,7 @@ class PlaybookRunner:
                            finished_callback=self.finished_callback,
                            event_handler=self.runner_process_message)
         print('spawned ansible runner')
+        print(self.temp_dir)
 
     def cancel_callback(self):
         print('cancel_callback called')
@@ -174,7 +176,8 @@ class PlaybookRunner:
 
 class DiffHandler:
 
-    def __init__(self, state_path, playbook_path, queue, secrets, project_src):
+    def __init__(self, state_path, playbook_path, queue, secrets, project_src, inventory):
+        self.inventory = inventory
         self.queue = queue
         self.state_path = state_path
         self.playbook_path = playbook_path
@@ -184,10 +187,7 @@ class DiffHandler:
             self.current_desired_state = yaml.safe_load(f.read())
         with open(self.playbook_path) as f:
             self.original_playbook = yaml.safe_load(f.read())
-        with open(self.playbook_path) as f:
-            self.current_playbook = yaml.safe_load(f.read())
         pprint.pprint(self.current_desired_state)
-        pprint.pprint(self.current_playbook)
 
     def recieve_messages(self):
         print('recieve_messages')
@@ -227,7 +227,12 @@ class DiffHandler:
         if len(state_diff) or len(playbook_diff):
             # v0 execute ansible to resolve the desired state by running a playbook
             self.original_playbook = new_playbook
-            PlaybookRunner(new_desired_state, state_diff, self.current_playbook, self.secrets, self.project_src)
+            PlaybookRunner(new_desired_state,
+                           state_diff,
+                           current_playbook,
+                           self.secrets,
+                           self.project_src,
+                           self.inventory)
             # v0 assume that the state was set correctly
             self.current_desired_state = new_desired_state
 
@@ -274,6 +279,14 @@ def main(args=None):
         assert False, 'Update the docopt'
 
 
+def inventory(parsed_args):
+
+    if not parsed_args['--inventory']:
+        return  "[all]\nlocalhost ansible_connection=local\n"
+
+    with open(parsed_args['--inventory']) as f:
+        return f.read()
+
 
 def ansible_state_init(parsed_args, secrets=None):
 
@@ -290,7 +303,7 @@ def ansible_state_init(parsed_args, secrets=None):
 
     project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
 
-    PlaybookRunner(state, {}, playbook, secrets, project_src)
+    PlaybookRunner(state, {}, playbook, secrets, project_src, inventory(parsed_args))
 
 
 def ansible_state_watch(parsed_args):
@@ -313,7 +326,8 @@ def ansible_state_watch(parsed_args):
                                os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])),
                                queue,
                                secrets,
-                               project_src)
+                               project_src,
+                               inventory(parsed_args))
 
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<state.yml>'])), queue))
     threads.append(gevent.spawn(watch_files, os.path.abspath(os.path.expanduser(parsed_args['<playbook.yml>'])), queue))
