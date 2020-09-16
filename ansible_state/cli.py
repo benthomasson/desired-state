@@ -26,7 +26,7 @@ from collections import defaultdict
 from getpass import getpass
 from enum import Enum
 from docopt import docopt
-from ansible_state.rule import select_rules
+from ansible_state.rule import select_rules, select_rules_recursive
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
@@ -66,6 +66,8 @@ def convert_diff(diff):
         diff['dictionary_item_added'] = [str(x) for x in diff['dictionary_item_added']]
     if 'dictionary_item_removed' in diff:
         diff['dictionary_item_removed'] = [str(x) for x in diff['dictionary_item_removed']]
+    if 'type_changes' in diff:
+        diff['type_changes'] = [str(x) for x in diff['type_changes']]
     diff = dict(diff)
     print(yaml.safe_dump(diff))
     return diff
@@ -236,7 +238,7 @@ def ansible_state_diff(parsed_args):
     with open(parsed_args['<rules.yml>']) as f:
         rules = yaml.safe_load(f.read())
 
-    matching_rules = select_rules(diff, rules['rules'])
+    matching_rules = select_rules_recursive(diff, rules['rules'])
     for change_type, rule, match, value in matching_rules:
         print(change_type)
         print(rule)
@@ -272,12 +274,15 @@ def ansible_state_diff(parsed_args):
 
         print(rule.get(ACTION_RULES[action]))
 
-        # Build the vars using destructuring
+        # Experiment: Build the vars using destructuring
 
         destructured_vars = {}
 
         for name, extract_path in rule.get('vars', {}).items():
             destructured_vars[name] = extract(subtree, extract_path)
+
+        # Experiment: Make the subtree available as node
+        destructured_vars['node'] = subtree
 
         print('destructured_vars', destructured_vars)
 
@@ -285,7 +290,10 @@ def ansible_state_diff(parsed_args):
 
         inventory_selector = rule.get('inventory_selector')
         if inventory_selector:
-            inventory_name = extract(subtree, inventory_selector)
+            try:
+                inventory_name = extract(subtree, inventory_selector)
+            except KeyError:
+                raise Exception(f'Invalid inventory_selector {inventory_selector}')
 
         print(inventory_name)
 
@@ -301,6 +309,9 @@ def ansible_state_diff(parsed_args):
 
         if 'tasks' in rule.get(ACTION_RULES[action], {}):
             playbook[0]['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[action]).get('tasks')}})
+
+        if 'become' in rule:
+            playbook[0]['become'] = rule['become']
 
 
         # Run the playbook

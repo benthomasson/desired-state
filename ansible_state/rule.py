@@ -4,6 +4,81 @@ import re
 from .util import make_matcher
 
 
+def select_rules_recursive(diff, rules):
+
+    matching_rules = []
+    matchers = [(make_matcher(rule['rule_selector']), rule) for rule in rules]
+
+    for key, value in diff.get('values_changed', {}).items():
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, key)
+            if match:
+                matching_rules.append(('values_changed', rule, match, value))
+
+    for item in diff.get('dictionary_item_added', []):
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, item)
+            if match:
+                matching_rules.append(('dictionary_item_added', rule, match, None))
+
+    for item in diff.get('dictionary_item_removed', []):
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, item)
+            if match:
+                matching_rules.append(('dictionary_item_removed', rule, match, None))
+
+    for item in diff.get('iterable_item_added', []):
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, item)
+            if match:
+                matching_rules.append(('iterable_item_added', rule, match, None))
+
+    for item in diff.get('iterable_item_removed', []):
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, item)
+            if match:
+                matching_rules.append(('iterable_item_removed', rule, match, None))
+
+    for key, value in diff.get('type_changes', {}).items():
+        # Handles case in YAML where an empty list defaults to None type
+        if value.get('old_type') == type(None) and value.get('new_type') == list:
+            # Add a single new element to the key
+            # TODO: this should probably loop over all the new elements in the list not just one
+            key += '[0]'
+        elif value.get('old_type') == list and value.get('new_type') == type(None):
+            # Add a single new element to the key
+            key += '[0]'
+        for (matcher, rule) in matchers:
+            match = re.match(matcher, key)
+            if match:
+                matching_rules.append(('type_changes', rule, match, None))
+
+        # Handles case in YAML where an empty dict defaults to None type
+        if value.get('old_type') == type(None) and value.get('new_type') == dict:
+            # Try the matcher against all the keys in the dict
+            for dict_key in value.get('new_value').keys():
+                new_key = f"{key}['{dict_key}']"
+                for (matcher, rule) in matchers:
+                    match = re.match(matcher, new_key)
+                    if match:
+                        matching_rules.append(('type_changes', rule, match, None))
+
+    return matching_rules
+
+
+def select_rules_recursive_helper(diff, matchers, matching_rules, path, value):
+
+    if type(value) is list:
+        for i, item in enumerate(value):
+            select_rules_recursive_helper(diff, matchers, matching_rules, f"{path}[{i}]", item)
+
+    if type(value) is dict:
+        for k, v in value.items():
+            select_rules_recursive_helper(diff, matchers, matching_rules, f"{path}['{k}']", v)
+
+
+
+
 def select_rules(diff, rules):
     matching_rules = []
     for rule in rules:
@@ -30,12 +105,25 @@ def select_rules(diff, rules):
                 matching_rules.append(('iterable_item_removed', rule, match, None))
         for key, value in diff.get('type_changes', {}).items():
             # Handles case in YAML where an empty list defaults to None type
-            print(value)
             if value.get('old_type') == type(None) and value.get('new_type') == list:
+                # Add a single new element to the key
+                # TODO: this should probably loop over all the new elements in the list not just one
                 key += '[0]'
             elif value.get('old_type') == list and value.get('new_type') == type(None):
+                # Add a single new element to the key
                 key += '[0]'
             match = re.match(matcher, key)
             if match:
                 matching_rules.append(('type_changes', rule, match, None))
+
+            # Handles case in YAML where an empty dict defaults to None type
+            if value.get('old_type') == type(None) and value.get('new_type') == dict:
+                # Try the matcher against all the keys in the dict
+                for dict_key in value.get('new_value').keys():
+                    new_key = f"{key}['{dict_key}']"
+                    match = re.match(matcher, new_key)
+                    if match:
+                        matching_rules.append(('type_changes', rule, match, None))
+
+
     return matching_rules
