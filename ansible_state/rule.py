@@ -62,11 +62,21 @@ def select_rules_recursive(diff, rules):
                     match = re.match(matcher, new_key)
                     if match:
                         matching_rules.append(('type_changes', rule, match, None))
+            select_rules_recursive_helper(diff, matchers, matching_rules, key, value.get('new_value'))
 
     return matching_rules
 
 
 def select_rules_recursive_helper(diff, matchers, matching_rules, path, value):
+
+    print(path)
+
+    for (matcher, rule) in matchers:
+        match = re.match(matcher, path)
+        if match:
+            print('match')
+            matching_rules.append(('subtree', rule, match, value))
+
 
     if type(value) is list:
         for i, item in enumerate(value):
