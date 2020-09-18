@@ -2,7 +2,9 @@
 
 """
 Usage:
-    ansible-state [options] diff <current-state.yml> <new-state.yml> <rules.yml>
+    ansible-state [options] monitor <current-state.yml> <rules.yml>
+    ansible-state [options] update-desired-state <new-state.yml>
+    ansible-state [options] update-system-state <new-state.yml>
 
 Options:
     -h, --help              Show this page
@@ -90,8 +92,12 @@ def main(args=None):
     if parsed_args['--cwd']:
         os.chdir(parsed_args['--cwd'])
 
-    if parsed_args['diff']:
-        return ansible_state_diff(parsed_args)
+    if parsed_args['monitor']:
+        return ansible_state_monitor(parsed_args)
+    elif parsed_args['update-desired-state']:
+        return ansible_state_update_desired_state(parsed_args)
+    elif parsed_args['update-system-state']:
+        return ansible_state_update_system_state(parsed_args)
     else:
         assert False, 'Update the docopt'
 
