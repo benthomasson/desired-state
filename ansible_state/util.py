@@ -10,4 +10,4 @@ def escape(pattern):
 
 def make_matcher(pattern):
     pattern = escape(pattern)
-    return f'^({pattern})$'
+    return f'^({pattern}).*$'

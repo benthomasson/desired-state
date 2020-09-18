@@ -8,9 +8,11 @@ Options:
     -h, --help              Show this page
     --debug                 Show debug logging
     --verbose               Show verbose logging
+    --explain               Do not run the rules, only print the ones that would run.
     --ask-become-pass       Ask for the become password
     --project-src=<d>       Copy project files this directory [default: .]
     --inventory=<i>         Inventory to use
+    --cwd=<c>               Change working directory on start
 """
 
 import logging
@@ -22,7 +24,8 @@ import os
 import tempfile
 import json
 import shutil
-from collections import defaultdict
+from pprint import pprint
+from collections import defaultdict, OrderedDict
 from getpass import getpass
 from enum import Enum
 from docopt import docopt
@@ -83,6 +86,9 @@ def main(args=None):
         logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARNING)
+
+    if parsed_args['--cwd']:
+        os.chdir(parsed_args['--cwd'])
 
     if parsed_args['diff']:
         return ansible_state_diff(parsed_args)
@@ -239,13 +245,32 @@ def ansible_state_diff(parsed_args):
         rules = yaml.safe_load(f.read())
 
     matching_rules = select_rules_recursive(diff, rules['rules'])
-    for change_type, rule, match, value in matching_rules:
-        print(change_type)
-        print(rule)
-        print(match)
-        print(value)
+    if parsed_args['--explain']:
+        print('matching_rules:')
+        pprint(matching_rules)
+
+    dedup_matching_rules = OrderedDict()
+
+    for matching_rule in matching_rules:
+        _, _, match, _ = matching_rule
         changed_subtree_path = match.groups()[0]
-        print(changed_subtree_path)
+        if changed_subtree_path not in dedup_matching_rules:
+            dedup_matching_rules[changed_subtree_path] = matching_rule
+
+
+    dedup_matching_rules = list(dedup_matching_rules.values())
+
+    if parsed_args['--explain']:
+        print('dedup_matching_rules:')
+        pprint(dedup_matching_rules)
+
+    for change_type, rule, match, value in dedup_matching_rules:
+        print('change_type', change_type)
+        print('rule', rule)
+        print('match', match)
+        print('value', value)
+        changed_subtree_path = match.groups()[0]
+        print('changed_subtree_path', changed_subtree_path)
         try:
             new_subtree = extract(new_desired_state, changed_subtree_path)
             new_subtree_missing = False
@@ -256,8 +281,8 @@ def ansible_state_diff(parsed_args):
             old_subtree_missing = False
         except (KeyError, IndexError, TypeError):
             old_subtree_missing = True
-        print(new_subtree_missing)
-        print(old_subtree_missing)
+        print('new_subtree_missing', new_subtree_missing)
+        print('old_subtree_missing', old_subtree_missing)
 
         if new_subtree_missing is False and old_subtree_missing is False:
             action = Action.UPDATE
@@ -270,9 +295,9 @@ def ansible_state_diff(parsed_args):
             subtree = new_subtree
         else:
             assert False, "Logic bug"
-        print(action)
+        print('action', action)
 
-        print(rule.get(ACTION_RULES[action]))
+        print('rule action', rule.get(ACTION_RULES[action]))
 
         # Experiment: Build the vars using destructuring
 
@@ -295,17 +320,14 @@ def ansible_state_diff(parsed_args):
             except KeyError:
                 raise Exception(f'Invalid inventory_selector {inventory_selector}')
 
-        print(inventory_name)
-
+        print('inventory_name', inventory_name)
 
         # Build a playbook using tasks or role from rule
 
         playbook = [{'name': 'generated playbook',
-                    'hosts': inventory_name,
-                    'gather_facts': False,
-                    'tasks': []}]
-
-        print(rule.get(ACTION_RULES[action]))
+                     'hosts': inventory_name,
+                     'gather_facts': False,
+                     'tasks': []}]
 
         if 'tasks' in rule.get(ACTION_RULES[action], {}):
             playbook[0]['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[action]).get('tasks')}})
@@ -313,15 +335,20 @@ def ansible_state_diff(parsed_args):
         if 'become' in rule:
             playbook[0]['become'] = rule['become']
 
+        if parsed_args['--explain']:
 
-        # Run the playbook
+            print(yaml.dump(playbook))
 
-        PlaybookRunner(new_desired_state,
-                       diff,
-                       destructured_vars,
-                       playbook,
-                       secrets,
-                       project_src,
-                       inventory(parsed_args))
+        else:
+
+            # Run the playbook
+
+            PlaybookRunner(new_desired_state,
+                           diff,
+                           destructured_vars,
+                           playbook,
+                           secrets,
+                           project_src,
+                           inventory(parsed_args))
 
     return 0
