@@ -11,3 +11,8 @@ def escape(pattern):
 def make_matcher(pattern):
     pattern = escape(pattern)
     return f'^({pattern}).*$'
+
+def ensure_directory(d):
+    if not os.path.exists(d):
+        os.mkdir(d)
+

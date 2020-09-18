@@ -4,6 +4,20 @@ import re
 from .util import make_matcher
 
 
+class Action(Enum):
+
+    CREATE = 'CREATE'
+    UPDATE = 'UPDATE'
+    RETRIEVE = 'RETRIEVE'
+    DELETE = 'DELETE'
+
+
+ACTION_RULES = {Action.CREATE: 'create',
+                Action.UPDATE: 'update',
+                Action.RETRIEVE: 'retrieve',
+                Action.DELETE: 'delete'}
+
+
 def select_rules_recursive(diff, rules):
 
     matching_rules = []
