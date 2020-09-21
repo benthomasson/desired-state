@@ -19,10 +19,16 @@ Options:
 
 from gevent import monkey
 monkey.patch_all()
+import gevent
 import logging
 import sys
 import os
 from docopt import docopt
+
+from .monitor import AnsibleStateMonitor
+from .server import ZMQServerChannel
+from .util import ConsoleTraceLog
+
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
@@ -51,10 +57,10 @@ def main(args=None):
 
     if parsed_args['monitor']:
         return ansible_state_monitor(parsed_args)
-    elif parsed_args['update-desired-state']:
-        return ansible_state_update_desired_state(parsed_args)
-    elif parsed_args['update-system-state']:
-        return ansible_state_update_system_state(parsed_args)
+    # elif parsed_args['update-desired-state']:
+        # return ansible_state_update_desired_state(parsed_args)
+    # elif parsed_args['update-system-state']:
+        # return ansible_state_update_system_state(parsed_args)
     else:
         assert False, 'Update the docopt'
 
@@ -66,3 +72,13 @@ def inventory(parsed_args):
 
     with open(parsed_args['--inventory']) as f:
         return f.read()
+
+
+def ansible_state_monitor(parsed_args):
+
+    tracer = ConsoleTraceLog()
+    worker = AnsibleStateMonitor(tracer, 0)
+    server = ZMQServerChannel(worker.queue, tracer)
+    worker.controller.outboxes['output'] = server.queue
+    gevent.joinall([worker.thread, server.zmq_thread, server.controller_thread])
+    return 0
