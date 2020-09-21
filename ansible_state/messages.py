@@ -7,6 +7,8 @@ def serialize(message):
     return [message.__class__.__name__.encode(), yaml.dump(dict(message._asdict())).encode()]
 
 
+DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
+SystemState = namedtuple('SystemState', ['id', 'client_id', 'desired_state'])
 # Task = namedtuple('Task', ['id', 'client_id', 'task'])
 # Inventory = namedtuple('Inventory', ['id', 'inventory'])
 # Cancel = namedtuple('Cancel', ['id', 'client_id'])
@@ -22,4 +24,4 @@ def serialize(message):
 # StatusMessage = namedtuple('StatusMessage', ['message'])
 # TaskCompletionMessage = namedtuple('TaskCompletionMessage', ['task_num'])
 
-msg_types = {x.__name__: x for x in []}
+msg_types = {x.__name__: x for x in [DesiredState, SystemState]}

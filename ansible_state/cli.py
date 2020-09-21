@@ -23,11 +23,14 @@ import gevent
 import logging
 import sys
 import os
+import yaml
 from docopt import docopt
 
 from .monitor import AnsibleStateMonitor
+from .client import ZMQClientChannel
 from .server import ZMQServerChannel
 from .util import ConsoleTraceLog
+from .messages import DesiredState, SystemState
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
@@ -57,10 +60,10 @@ def main(args=None):
 
     if parsed_args['monitor']:
         return ansible_state_monitor(parsed_args)
-    # elif parsed_args['update-desired-state']:
-        # return ansible_state_update_desired_state(parsed_args)
-    # elif parsed_args['update-system-state']:
-        # return ansible_state_update_system_state(parsed_args)
+    elif parsed_args['update-desired-state']:
+        return ansible_state_update_desired_state(parsed_args)
+    elif parsed_args['update-system-state']:
+        return ansible_state_update_system_state(parsed_args)
     else:
         assert False, 'Update the docopt'
 
@@ -81,4 +84,31 @@ def ansible_state_monitor(parsed_args):
     server = ZMQServerChannel(worker.queue, tracer)
     worker.controller.outboxes['output'] = server.queue
     gevent.joinall([worker.thread, server.zmq_thread, server.controller_thread])
+    return 0
+
+
+def check_state(state):
+
+    yaml.safe_load(state)
+
+
+def ansible_state_update_desired_state(parsed_args):
+
+    with open(parsed_args['<new-state.yml>']) as f:
+        new_state = f.read()
+        check_state(new_state)
+
+    client = ZMQClientChannel()
+    client.send(DesiredState(0, 0, new_state))
+    return 0
+
+
+def ansible_state_update_system_state(parsed_args):
+
+    with open(parsed_args['<new-state.yml>']) as f:
+        new_state = f.read()
+        check_state(new_state)
+
+    client = ZMQClientChannel()
+    client.send(SystemState(0, 0, new_state))
     return 0
