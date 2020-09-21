@@ -89,7 +89,7 @@ transitions:
   label: success
   to_state: Discover1
 - from_state: Start
-  label: ''
+  label: 'enter'
   to_state: Waiting
 - from_state: Waiting
   label: new_desired_state
