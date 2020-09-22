@@ -25,11 +25,14 @@ import sys
 import os
 import yaml
 from docopt import docopt
+from collections import defaultdict
+from getpass import getpass
+import gevent_fsm.conf
 
 from .monitor import AnsibleStateMonitor
 from .client import ZMQClientChannel
 from .server import ZMQServerChannel
-from .util import ConsoleTraceLog
+from .util import ConsoleTraceLog, check_state
 from .messages import DesiredState, SystemState
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
@@ -50,7 +53,9 @@ def main(args=None):
     parsed_args = docopt(__doc__, args)
     if parsed_args['--debug']:
         logging.basicConfig(level=logging.DEBUG)
+        gevent_fsm.conf.settings.instrumented = True
     elif parsed_args['--verbose']:
+        gevent_fsm.conf.settings.instrumented = True
         logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARNING)
@@ -79,17 +84,25 @@ def inventory(parsed_args):
 
 def ansible_state_monitor(parsed_args):
 
+    secrets = defaultdict(str)
+
+    if parsed_args['--ask-become-pass'] and not secrets['become']:
+        secrets['become'] = getpass()
+
+    project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
+
+    with open(parsed_args['<current-state.yml>']) as f:
+        current_desired_state = yaml.safe_load(f.read())
+
+    with open(parsed_args['<rules.yml>']) as f:
+        rules = yaml.safe_load(f.read())
+
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0)
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args))
     server = ZMQServerChannel(worker.queue, tracer)
     worker.controller.outboxes['output'] = server.queue
     gevent.joinall([worker.thread, server.zmq_thread, server.controller_thread])
     return 0
-
-
-def check_state(state):
-
-    yaml.safe_load(state)
 
 
 def ansible_state_update_desired_state(parsed_args):

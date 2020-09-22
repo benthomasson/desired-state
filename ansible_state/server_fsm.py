@@ -16,8 +16,17 @@ Start = _Start()
 class _Ready(State):
 
     def start(self, controller):
-        pass
+        print ("server_fsm buffered_messages", len(controller.context.buffered_messages))
+        if not controller.context.buffered_messages.empty():
+            controller.context.queue.put(controller.context.buffered_messages.get())
 
+    def onDesiredState(self, controller, message_type, message):
+        print('onDesiredState')
+        controller.context.outbox.put(message)
+
+    def onSystemState(self, controller, message_type, message):
+        print('onSystemState')
+        controller.context.outbox.put(message)
 
 Ready = _Ready()
 

@@ -8,7 +8,13 @@ def serialize(message):
 
 
 DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
-SystemState = namedtuple('SystemState', ['id', 'client_id', 'desired_state'])
+SystemState = namedtuple('SystemState', ['id', 'client_id', 'system_state'])
+Poll = namedtuple('Poll', [])
+Complete = namedtuple('Complete', [])
+Difference = namedtuple('Difference', [])
+NoDifference = namedtuple('NoDifference', [])
+Success = namedtuple('Success', [])
+Failure = namedtuple('Failure', [])
 # Task = namedtuple('Task', ['id', 'client_id', 'task'])
 # Inventory = namedtuple('Inventory', ['id', 'inventory'])
 # Cancel = namedtuple('Cancel', ['id', 'client_id'])

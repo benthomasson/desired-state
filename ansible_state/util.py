@@ -1,5 +1,7 @@
 
 from itertools import count
+import yaml
+import os
 
 # Escape the pattern with a limited set of regexp special characters
 # To allow some of the regexps to be used.
@@ -7,17 +9,23 @@ from itertools import count
 # We might want to use glob pattern matching or something simple like that
 _special_chars_map = {i: '\\' + chr(i) for i in b'()[]{}-|^$.&~# \t\n\r\v\f'}
 
+
 def escape(pattern):
     return pattern.translate(_special_chars_map)
+
 
 def make_matcher(pattern):
     pattern = escape(pattern)
     return f'^({pattern}).*$'
 
+
 def ensure_directory(d):
     if not os.path.exists(d):
         os.mkdir(d)
 
+
+def check_state(state):
+    yaml.safe_load(state)
 
 
 class ConsoleTraceLog(object):

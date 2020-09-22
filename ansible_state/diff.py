@@ -255,4 +255,4 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
                            project_src,
                            inventory)
 
-    return 0
+    return True

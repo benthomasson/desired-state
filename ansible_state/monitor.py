@@ -9,7 +9,12 @@ from . import resolution_fsm
 
 class AnsibleStateMonitor(object):
 
-    def __init__(self, tracer, fsm_id):
+    def __init__(self, tracer, fsm_id, secrets, project_src, rules, current_desired_state, inventory):
+        self.secrets = secrets
+        self.project_src = project_src
+        self.rules = rules
+        self.current_desired_state = current_desired_state
+        self.inventory = inventory
         self.tracer = tracer
         self.buffered_messages = Queue()
         self.controller = FSMController(self, "resolution_fsm", fsm_id, resolution_fsm.Start, self.tracer, self.tracer)

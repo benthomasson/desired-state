@@ -2,6 +2,7 @@
 
 import re
 from .util import make_matcher
+from enum import Enum
 
 
 class Action(Enum):
