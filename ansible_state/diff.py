@@ -150,7 +150,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
     diff = DeepDiff(current_desired_state, new_desired_state)
     print(diff)
 
-    matching_rules = select_rules_recursive(diff, rules['rules'])
+    matching_rules = select_rules_recursive(diff, rules['rules'], current_desired_state, new_desired_state)
     if explain:
         print('matching_rules')
         pprint(matching_rules)

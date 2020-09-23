@@ -3,7 +3,9 @@
 import re
 from .util import make_matcher
 from enum import Enum
+from deepdiff import extract
 
+from pprint import pprint
 
 class Action(Enum):
 
@@ -19,7 +21,7 @@ ACTION_RULES = {Action.CREATE: 'create',
                 Action.DELETE: 'delete'}
 
 
-def select_rules_recursive(diff, rules):
+def select_rules_recursive(diff, rules, current_desired_state, new_desired_state):
 
     matching_rules = []
     matchers = [(make_matcher(rule['rule_selector']), rule) for rule in rules]
@@ -31,10 +33,15 @@ def select_rules_recursive(diff, rules):
                 matching_rules.append(('values_changed', rule, match, value))
 
     for item in diff.get('dictionary_item_added', []):
+        pprint(diff)
+        print('dictionary_item_added', item)
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
                 matching_rules.append(('dictionary_item_added', rule, match, None))
+            new_subtree = extract(new_desired_state, item)
+            print(new_subtree)
+            select_rules_recursive_helper(diff, matchers, matching_rules, item, new_subtree)
 
     for item in diff.get('dictionary_item_removed', []):
         for (matcher, rule) in matchers:
