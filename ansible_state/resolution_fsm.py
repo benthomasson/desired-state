@@ -2,7 +2,7 @@ from gevent_fsm.fsm import State, transitions
 
 import yaml
 from deepdiff import DeepDiff
-from .diff import ansible_state_diff
+from .diff import ansible_state_diff, ansible_state_discovery
 from pprint import pprint
 
 
@@ -13,7 +13,16 @@ class _Discover1(State):
 
         # Trivial discovery
         # Assume the state is the same as new desired state
-        controller.context.discovered_system_state = controller.context.new_desired_state
+
+        monitor = controller.context
+
+        monitor.discovered_system_state = ansible_state_discovery(monitor.secrets,
+                                                                  monitor.project_src,
+                                                                  monitor.current_desired_state,
+                                                                  monitor.new_desired_state,
+                                                                  monitor.ran_rules,
+                                                                  monitor.inventory,
+                                                                  False)
         controller.changeState(Diff2)
 
 
@@ -36,15 +45,15 @@ class _Resolve1(State):
 
         monitor = controller.context
 
-        result = ansible_state_diff(monitor.secrets,
-                                    monitor.project_src,
-                                    monitor.current_desired_state,
-                                    monitor.new_desired_state,
-                                    monitor.rules,
-                                    monitor.inventory,
-                                    False)
+        monitor.ran_rules = ansible_state_diff(monitor.secrets,
+                                               monitor.project_src,
+                                               monitor.current_desired_state,
+                                               monitor.new_desired_state,
+                                               monitor.rules,
+                                               monitor.inventory,
+                                               False)
 
-        if result:
+        if all([x[4] for x in monitor.ran_rules]):
             controller.changeState(Discover1)
         else:
             controller.changeState(Retry)

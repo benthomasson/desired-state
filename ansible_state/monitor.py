@@ -13,6 +13,7 @@ class AnsibleStateMonitor(object):
         self.secrets = secrets
         self.project_src = project_src
         self.rules = rules
+        self.ran_rules = []
         self.current_desired_state = current_desired_state
         self.inventory = inventory
         self.tracer = tracer

@@ -4,6 +4,7 @@ import yaml
 import tempfile
 import shutil
 import json
+import re
 import ansible_runner
 from pprint import pprint
 from collections import OrderedDict
@@ -42,6 +43,8 @@ class PlaybookRunner:
         self.shutdown_requested = False
         self.shutdown = False
 
+    def run(self):
+
         self.build_project_directory()
         self.copy_files()
         self.write_settings()
@@ -53,6 +56,8 @@ class PlaybookRunner:
         self.write_playbook()
         self.write_inventory()
         self.start_ansible_playbook()
+
+        return True
 
     def build_project_directory(self):
         self.temp_dir = tempfile.mkdtemp(prefix="ansible_state_playbook")
@@ -169,6 +174,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
         print('dedup_matching_rules:')
         pprint(dedup_matching_rules)
 
+    ran_rules = []
+
     for change_type, rule, match, value in dedup_matching_rules:
         print('change_type', change_type)
         print('rule', rule)
@@ -245,14 +252,88 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
         else:
 
-            # Run the playbook
+            # Run the action playbook
 
-            PlaybookRunner(new_desired_state,
-                           diff,
-                           destructured_vars,
-                           playbook,
-                           secrets,
-                           project_src,
-                           inventory)
+            result = PlaybookRunner(new_desired_state,
+                                    diff,
+                                    destructured_vars,
+                                    playbook,
+                                    secrets,
+                                    project_src,
+                                    inventory).run()
 
-    return True
+            ran_rules.append((rule, changed_subtree_path, subtree, inventory_name, result))
+
+    return ran_rules
+
+
+def ansible_state_discovery(secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
+
+    diff = DeepDiff(current_desired_state, new_desired_state)
+
+    # deep copy
+    new_discovered_state = yaml.safe_load(yaml.safe_dump(new_desired_state))
+
+    for rule, changed_subtree_path, subtree, inventory_name, result in ran_rules:
+
+        # Experiment: Build the vars using destructuring
+        destructured_vars = {}
+
+        for name, extract_path in rule.get('vars', {}).items():
+            destructured_vars[name] = extract(subtree, extract_path)
+
+        # Experiment: Make the subtree available as node
+        destructured_vars['node'] = subtree
+
+        print('destructured_vars', destructured_vars)
+
+        # Build a playbook using tasks or role from rule
+
+        playbook = [{'name': 'generated playbook',
+                     'hosts': inventory_name,
+                     'gather_facts': False,
+                     'tasks': []}]
+
+        if 'tasks' in rule.get(ACTION_RULES[Action.RETRIEVE], {}):
+            playbook[0]['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks')}})
+
+        print(playbook)
+
+        runner = PlaybookRunner(new_desired_state,
+                                diff,
+                                destructured_vars,
+                                playbook,
+                                secrets,
+                                project_src,
+                                inventory)
+        result = runner.run()
+
+        if result:
+            discovered_state_file = os.path.join(runner.temp_dir, 'project', 'discovered_state.yml')
+            if os.path.exists(discovered_state_file):
+                with open(discovered_state_file) as f:
+                    discovered_subtree_state = yaml.safe_load(f.read())
+                    print(changed_subtree_path)
+                    print(yaml.safe_dump(discovered_subtree_state, default_flow_style=False))
+                    print(yaml.safe_dump(subtree, default_flow_style=False))
+
+                # List case
+                match_list = re.match(r"(.*)\[(\d+)\]$", changed_subtree_path)
+                if match_list:
+                    parent_path = match_list.groups()[0]
+                    index = int(match_list.groups()[1])
+                    extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+
+                # Dict case
+                match_dict = re.match(r"(.*)\['(\S+)'\]$", changed_subtree_path)
+                if match_dict and not match_list:
+                    parent_path = match_dict.groups()[0]
+                    index = match_dict.groups()[1]
+                    extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+
+                if not match_dict and not match_list:
+                    assert False, f"type of changed_subtree_path not supported {changed_subtree_path}"
+
+                print(yaml.safe_dump(new_discovered_state, default_flow_style=False))
+
+    return new_discovered_state

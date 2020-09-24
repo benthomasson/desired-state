@@ -1,6 +1,6 @@
 
 
-from deepdiff import DeepDiff
+from deepdiff import DeepDiff, extract
 
 import yaml
 import re
@@ -88,3 +88,39 @@ def test_diff_tree_change_item():
     assert re.match(make_matcher("root['routers']"), "root['routers'][1]['name']")
     assert re.match(make_matcher(r"root['routers'][\d+]"), "root['routers'][1]['name']")
     assert diff == {'values_changed': {"root['routers'][1]['name']": {'new_value': 'R3', 'old_value': 'R2'}}}
+
+
+def test_extract_and_modify():
+
+    t1 = yaml.safe_load('''
+    routers:
+        - name: R1
+        - name: R2
+    ''')
+
+    assert extract(t1, "root['routers'][0]") == {'name': 'R1'}
+    extract(t1, "root['routers']")[0] = {'name': 'R3'}
+    assert extract(t1, "root['routers'][0]") == {'name': 'R3'}
+
+    # find parent and index of node
+
+
+    # List case
+    match = re.match(r"(.*)\[(\d+)\]$", "root['routers'][0]")
+    assert match.groups()[0] == "root['routers']"
+    assert match.groups()[1] == "0"
+    parent = match.groups()[0]
+    index = int(match.groups()[1])
+    extract(t1, parent)[index] = {'name': 'R4'}
+
+    assert extract(t1, "root['routers']") == [{'name': 'R4'}, {'name': 'R2'}]
+
+    # Dictionary case
+    match = re.match(r"(.*)\['(\S+)'\]$", "root['routers']")
+    assert match.groups()[0] == "root"
+    assert match.groups()[1] == "routers"
+    parent = match.groups()[0]
+    index = match.groups()[1]
+    extract(t1, parent)[index] = [{'name': 'R5'}, {'name': 'R2'}]
+
+    assert extract(t1, "root") == {'routers': [{'name': 'R5'}, {'name': 'R2'}]}
