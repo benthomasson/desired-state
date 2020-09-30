@@ -16,6 +16,10 @@ from ansible_state.util import ensure_directory
 
 def convert_diff(diff):
 
+    '''
+    Converts the DeepDiff structure into a YAML serializable data structure.
+    '''
+
     print(diff)
     if 'dictionary_item_added' in diff:
         diff['dictionary_item_added'] = [str(x) for x in diff['dictionary_item_added']]
@@ -30,14 +34,18 @@ def convert_diff(diff):
 
 class PlaybookRunner:
 
-    def __init__(self, new_desired_state, state_diff, destructured_vars, playbook, secrets, project_src, inventory):
+    '''
+    PlaybookRunner is responsible for setting up and running ansible-runner
+    '''
+
+    def __init__(self, new_desired_state, state_diff, destructured_vars_list, playbook, secrets, project_src, inventory):
         print('PlaybookRunner')
         self.inventory = inventory
         self.secrets = secrets
         self.project_src = project_src
         self.new_desired_state = new_desired_state
         self.state_diff = convert_diff(state_diff)
-        self.destructured_vars = destructured_vars
+        self.destructured_vars_list = destructured_vars_list
         self.playbook = playbook
         self.runner_thread = None
         self.shutdown_requested = False
@@ -101,21 +109,25 @@ class PlaybookRunner:
         with open(state_vars_file, 'w') as f:
             f.write(yaml.safe_dump(self.new_desired_state, default_flow_style=False))
         for play in self.playbook:
-            play['tasks'].insert(0, {'include_vars': {'file': 'state_vars.yml', 'name': 'state'}})
+            play['tasks'].insert(0, {'include_vars': {'file': 'state_vars.yml', 'name': 'state'},
+                                     'name': 'include state_vars'})
 
     def write_diff_vars(self):
         diff_vars_file = os.path.join(self.temp_dir, 'project', 'diff_vars.yml')
         with open(diff_vars_file, 'w') as f:
             f.write(yaml.safe_dump(self.state_diff, default_flow_style=False))
         for play in self.playbook:
-            play['tasks'].insert(0, {'include_vars': {'file': 'diff_vars.yml', 'name': 'diff'}})
+            play['tasks'].insert(0, {'include_vars': {'file': 'diff_vars.yml', 'name': 'diff'},
+                                     'name': 'include diff_vars'})
 
     def write_destructred_vars(self):
-        diff_vars_file = os.path.join(self.temp_dir, 'project', 'destructured_vars.yml')
-        with open(diff_vars_file, 'w') as f:
-            f.write(yaml.safe_dump(self.destructured_vars, default_flow_style=False))
-        for play in self.playbook:
-            play['tasks'].insert(0, {'include_vars': {'file': 'destructured_vars.yml'}})
+        for i, destructured_vars in enumerate(self.destructured_vars_list):
+            diff_vars_file = os.path.join(self.temp_dir, 'project', f'destructured_vars_{i}.yml')
+            with open(diff_vars_file, 'w') as f:
+                f.write(yaml.safe_dump(destructured_vars, default_flow_style=False))
+        for i, play in enumerate(self.playbook):
+            play['tasks'].insert(0, {'include_vars': {'file': f'destructured_vars_{i}.yml'},
+                                     'name': 'include destructured_vars'})
 
     def write_inventory(self):
         print("inventory set to %s", self.inventory)
@@ -150,15 +162,24 @@ class PlaybookRunner:
 
 def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
 
-    # Find matching rules
+    '''
+    ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
+    between two version of state: current_desired_state and new_desired_state.
+    '''
+
+    # Find the difference between states
 
     diff = DeepDiff(current_desired_state, new_desired_state)
     print(diff)
+
+    # Find matching rules
 
     matching_rules = select_rules_recursive(diff, rules['rules'], current_desired_state, new_desired_state)
     if explain:
         print('matching_rules')
         pprint(matching_rules)
+
+    # Deduplicate the rules since some rules may match more than once when using recursive rule selection
 
     dedup_matching_rules = OrderedDict()
 
@@ -174,7 +195,13 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
         print('dedup_matching_rules:')
         pprint(dedup_matching_rules)
 
+    # Build up the set of ansible-runner executions to implement the changes using the rules
+
     ran_rules = []
+
+    plays = []
+
+    destructured_vars_list = []
 
     for change_type, rule, match, value in dedup_matching_rules:
         print('change_type', change_type)
@@ -234,47 +261,52 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
         print('inventory_name', inventory_name)
 
-        # Build a playbook using tasks or role from rule
+        # Build a play using tasks or role from rule
 
-        playbook = [{'name': 'generated playbook',
-                     'hosts': inventory_name,
-                     'gather_facts': False,
-                     'tasks': []}]
+        play = {'name': "{0} {1} {2}".format(ACTION_RULES[action], changed_subtree_path, inventory_name),
+                'hosts': inventory_name,
+                'gather_facts': False,
+                'tasks': []}
 
         if 'tasks' in rule.get(ACTION_RULES[action], {}):
-            playbook[0]['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[action]).get('tasks')}})
+            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[action]).get('tasks')},
+                                  'name': "{0} {1}".format(ACTION_RULES[action], changed_subtree_path)})
 
         if 'become' in rule:
-            playbook[0]['become'] = rule['become']
+            play['become'] = rule['become']
 
         if explain:
-            print(yaml.dump(playbook))
-
+            print(yaml.dump(play))
         else:
 
-            # Run the action playbook
+            # Run the action play
 
-            result = PlaybookRunner(new_desired_state,
-                                    diff,
-                                    destructured_vars,
-                                    playbook,
-                                    secrets,
-                                    project_src,
-                                    inventory).run()
+            plays.append(play)
+            destructured_vars_list.append(destructured_vars)
 
-            ran_rules.append((rule, changed_subtree_path, subtree, inventory_name, result))
+            ran_rules.append((rule, changed_subtree_path, subtree, inventory_name))
+
+    PlaybookRunner(new_desired_state,
+                   diff,
+                   destructured_vars_list,
+                   plays,
+                   secrets,
+                   project_src,
+                   inventory).run()
 
     return ran_rules
 
 
 def ansible_state_discovery(secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
 
+    # Discovers the state of a subset of a system
+
     diff = DeepDiff(current_desired_state, new_desired_state)
 
     # deep copy
     new_discovered_state = yaml.safe_load(yaml.safe_dump(new_desired_state))
 
-    for rule, changed_subtree_path, subtree, inventory_name, result in ran_rules:
+    for rule, changed_subtree_path, subtree, inventory_name in ran_rules:
 
         # Experiment: Build the vars using destructuring
         destructured_vars = {}
@@ -301,7 +333,7 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
         runner = PlaybookRunner(new_desired_state,
                                 diff,
-                                destructured_vars,
+                                [destructured_vars],
                                 playbook,
                                 secrets,
                                 project_src,

@@ -53,7 +53,7 @@ class _Resolve1(State):
                                                monitor.inventory,
                                                False)
 
-        if all([x[4] for x in monitor.ran_rules]):
+        if True:
             controller.changeState(Discover1)
         else:
             controller.changeState(Retry)
