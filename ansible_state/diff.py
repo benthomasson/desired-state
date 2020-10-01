@@ -306,7 +306,12 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
     # deep copy
     new_discovered_state = yaml.safe_load(yaml.safe_dump(new_desired_state))
 
-    for rule, changed_subtree_path, subtree, inventory_name in ran_rules:
+    plays = []
+
+    destructured_vars_list = []
+    discovered_rules = []
+
+    for discovery_id, (rule, changed_subtree_path, subtree, inventory_name) in enumerate(ran_rules):
 
         # Experiment: Build the vars using destructuring
         destructured_vars = {}
@@ -316,56 +321,69 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
         # Experiment: Make the subtree available as node
         destructured_vars['node'] = subtree
+        destructured_vars['discovery_id'] = discovery_id
 
         print('destructured_vars', destructured_vars)
 
-        # Build a playbook using tasks or role from rule
+        # Build a play using tasks or role from rule
 
-        playbook = [{'name': 'generated playbook',
-                     'hosts': inventory_name,
-                     'gather_facts': False,
-                     'tasks': []}]
+        play = {'name': f'discovery for {inventory_name} discovery_id {discovery_id}',
+                'hosts': inventory_name,
+                'gather_facts': False,
+                'tasks': []}
 
         if 'tasks' in rule.get(ACTION_RULES[Action.RETRIEVE], {}):
-            playbook[0]['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks')}})
+            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks')},
+                                     'name': 'include retrieve'})
 
-        print(playbook)
+        print(play)
 
-        runner = PlaybookRunner(new_desired_state,
-                                diff,
-                                [destructured_vars],
-                                playbook,
-                                secrets,
-                                project_src,
-                                inventory)
-        result = runner.run()
+        plays.append(play)
+        destructured_vars_list.append(destructured_vars)
+        discovered_rules.append([discovery_id, changed_subtree_path, subtree])
 
-        if result:
-            discovered_state_file = os.path.join(runner.temp_dir, 'project', 'discovered_state.yml')
-            if os.path.exists(discovered_state_file):
-                with open(discovered_state_file) as f:
-                    discovered_subtree_state = yaml.safe_load(f.read())
-                    print(changed_subtree_path)
-                    print(yaml.safe_dump(discovered_subtree_state, default_flow_style=False))
-                    print(yaml.safe_dump(subtree, default_flow_style=False))
+    runner = PlaybookRunner(new_desired_state,
+                            diff,
+                            destructured_vars_list,
+                            plays,
+                            secrets,
+                            project_src,
+                            inventory)
+    result = runner.run()
 
-                # List case
-                match_list = re.match(r"(.*)\[(\d+)\]$", changed_subtree_path)
-                if match_list:
-                    parent_path = match_list.groups()[0]
-                    index = int(match_list.groups()[1])
-                    extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+    if result:
 
-                # Dict case
-                match_dict = re.match(r"(.*)\['(\S+)'\]$", changed_subtree_path)
-                if match_dict and not match_list:
-                    parent_path = match_dict.groups()[0]
-                    index = match_dict.groups()[1]
-                    extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
-
-                if not match_dict and not match_list:
-                    assert False, f"type of changed_subtree_path not supported {changed_subtree_path}"
-
-                print(yaml.safe_dump(new_discovered_state, default_flow_style=False))
+        for discovery_id, changed_subtree_path, subtree in discovered_rules:
+            update_discovered_state(new_discovered_state, runner.temp_dir, discovery_id, changed_subtree_path, subtree)
 
     return new_discovered_state
+
+
+def update_discovered_state(new_discovered_state, temp_dir, discovery_id, changed_subtree_path, subtree):
+
+    discovered_state_file = os.path.join(temp_dir, 'project', f'discovered_state_{discovery_id}.yml')
+    if os.path.exists(discovered_state_file):
+        with open(discovered_state_file) as f:
+            discovered_subtree_state = yaml.safe_load(f.read())
+            print(changed_subtree_path)
+            print(yaml.safe_dump(discovered_subtree_state, default_flow_style=False))
+            print(yaml.safe_dump(subtree, default_flow_style=False))
+
+        # List case
+        match_list = re.match(r"(.*)\[(\d+)\]$", changed_subtree_path)
+        if match_list:
+            parent_path = match_list.groups()[0]
+            index = int(match_list.groups()[1])
+            extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+
+        # Dict case
+        match_dict = re.match(r"(.*)\['(\S+)'\]$", changed_subtree_path)
+        if match_dict and not match_list:
+            parent_path = match_dict.groups()[0]
+            index = match_dict.groups()[1]
+            extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+
+        if not match_dict and not match_list:
+            assert False, f"type of changed_subtree_path not supported {changed_subtree_path}"
+
+        print(yaml.safe_dump(new_discovered_state, default_flow_style=False))
