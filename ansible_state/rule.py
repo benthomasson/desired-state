@@ -13,12 +13,14 @@ class Action(Enum):
     UPDATE = 'UPDATE'
     RETRIEVE = 'RETRIEVE'
     DELETE = 'DELETE'
+    VALIDATE = 'VALIDATE'
 
 
 ACTION_RULES = {Action.CREATE: 'create',
                 Action.UPDATE: 'update',
                 Action.RETRIEVE: 'retrieve',
-                Action.DELETE: 'delete'}
+                Action.DELETE: 'delete',
+                Action.VALIDATE: 'validate'}
 
 
 def select_rules_recursive(diff, rules, current_desired_state, new_desired_state):

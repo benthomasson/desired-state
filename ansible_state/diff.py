@@ -387,3 +387,59 @@ def update_discovered_state(new_discovered_state, temp_dir, discovery_id, change
             assert False, f"type of changed_subtree_path not supported {changed_subtree_path}"
 
         print(yaml.safe_dump(new_discovered_state, default_flow_style=False))
+
+
+def destructure_vars(rule, subtree):
+
+    destructured_vars = {}
+
+    for name, extract_path in rule.get('vars', {}).items():
+        destructured_vars[name] = extract(subtree, extract_path)
+
+    return destructured_vars
+
+
+def ansible_state_validation(secrets, project_src, current_state, ran_rules, inventory, explain):
+
+    plays = []
+
+    destructured_vars_list = []
+    validated_rules = []
+
+    for rule, changed_subtree_path, subtree, inventory_name in ran_rules:
+
+        # Experiment: Build the vars using destructuring
+        destructured_vars = destructure_vars(rule, subtree)
+
+        # Experiment: Make the subtree available as node
+        destructured_vars['node'] = subtree
+
+        print('destructured_vars', destructured_vars)
+
+        # Build a play using tasks or role from rule
+
+        play = {'name': f'validation for {inventory_name}',
+                'hosts': inventory_name,
+                'gather_facts': False,
+                'tasks': []}
+
+        if 'tasks' in rule.get(ACTION_RULES[Action.VALIDATE], {}):
+            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks')},
+                                  'name': 'include validation'})
+
+        print(play)
+
+        plays.append(play)
+        destructured_vars_list.append(destructured_vars)
+        validated_rules.append([changed_subtree_path, subtree])
+
+    runner = PlaybookRunner(current_state,
+                            {},
+                            destructured_vars_list,
+                            plays,
+                            secrets,
+                            project_src,
+                            inventory)
+    result = runner.run()
+
+    return result

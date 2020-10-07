@@ -2,7 +2,7 @@ from gevent_fsm.fsm import State, transitions
 
 import yaml
 from deepdiff import DeepDiff
-from .diff import ansible_state_diff, ansible_state_discovery
+from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation
 from pprint import pprint
 
 
@@ -23,6 +23,13 @@ class _Discover1(State):
                                                                   monitor.ran_rules,
                                                                   monitor.inventory,
                                                                   False)
+
+        monitor.discovered_system_state = ansible_state_validation(monitor.secrets,
+                                                                   monitor.project_src,
+                                                                   monitor.new_desired_state,
+                                                                   monitor.ran_rules,
+                                                                   monitor.inventory,
+                                                                   False)
         controller.changeState(Diff2)
 
 
