@@ -10,6 +10,7 @@ v2. full resolution loop: implement a resolution loop finite state machine and u
 v3. planner: Consolidate all the changes between two versions of state into one playbook/project.
              Add an option to export that project to Tower instead of runner.
 v4. validation:  Add operational state validation to the rules and to the finite state machine
+v5. streaming telemetry:  Export data over a channel to external consumers
 
 
 
