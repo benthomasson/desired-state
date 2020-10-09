@@ -7,6 +7,9 @@ def serialize(message):
     return [message.__class__.__name__.encode(), yaml.dump(dict(message._asdict())).encode()]
 
 
+Hello = namedtuple('Hello', [])
+FSMState = namedtuple('FSMState', ['state'])
+
 DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
 SystemState = namedtuple('SystemState', ['id', 'client_id', 'system_state'])
 Poll = namedtuple('Poll', [])
@@ -15,6 +18,11 @@ Difference = namedtuple('Difference', [])
 NoDifference = namedtuple('NoDifference', [])
 Success = namedtuple('Success', [])
 Failure = namedtuple('Failure', [])
+
+Inventory = namedtuple('Inventory', ['inventory'])
+Rules = namedtuple('Rules', ['rules'])
+
+
 # Task = namedtuple('Task', ['id', 'client_id', 'task'])
 # Inventory = namedtuple('Inventory', ['id', 'inventory'])
 # Cancel = namedtuple('Cancel', ['id', 'client_id'])

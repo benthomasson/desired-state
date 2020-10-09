@@ -2,14 +2,16 @@ from gevent_fsm.fsm import State, transitions
 
 import yaml
 from deepdiff import DeepDiff
-from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation
 from pprint import pprint
+from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation
+from .messages import FSMState, DesiredState
 
 
 class _Discover1(State):
 
     @transitions('Diff2')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Discover1'))
 
         # Trivial discovery
         # Assume the state is the same as new desired state
@@ -38,7 +40,8 @@ Discover1 = _Discover1()
 
 class _Help(State):
 
-    pass
+    def start(self, controller):
+        controller.context.stream.put_message(FSMState('Help'))
 
 
 Help = _Help()
@@ -49,6 +52,7 @@ class _Resolve1(State):
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Resolve1'))
 
         monitor = controller.context
 
@@ -74,6 +78,7 @@ class _Resolve2(State):
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Resolve2'))
 
         monitor = controller.context
 
@@ -99,6 +104,7 @@ class _Resolve3(State):
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Resolve3'))
 
         monitor = controller.context
 
@@ -122,6 +128,7 @@ Resolve3 = _Resolve3()
 class _Waiting(State):
 
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Waiting'))
         print("resolution_fsm buffered_messages", len(controller.context.buffered_messages))
         if not controller.context.buffered_messages.empty():
             controller.context.queue.put(controller.context.buffered_messages.get())
@@ -130,6 +137,7 @@ class _Waiting(State):
     def onDesiredState(self, controller, message_type, message):
         print('Waiting.onDesiredState')
         controller.context.new_desired_state = yaml.safe_load(message.desired_state)
+        controller.context.stream.put_message(DesiredState(0, 0, controller.context.new_desired_state))
         controller.changeState(Diff1)
 
     @transitions('Diff1')
@@ -151,6 +159,7 @@ class _Diff1(State):
     @transitions('Resolve1')
     @transitions('Waiting')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Diff1'))
         controller.context.diff = DeepDiff(controller.context.current_desired_state, controller.context.new_desired_state)
         pprint(controller.context.diff)
 
@@ -164,6 +173,9 @@ Diff1 = _Diff1()
 
 
 class _Revert(State):
+
+    def start(self, controller):
+        controller.context.stream.put_message(FSMState('Revert'))
 
     @transitions('Help')
     def failure(self, controller, message_type, message):
@@ -184,6 +196,7 @@ class _Diff3(State):
     @transitions('Resolve3')
     @transitions('Waiting')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Diff3'))
         controller.context.diff = DeepDiff(controller.context.discovered_system_state, controller.context.current_desired_state)
         print(controller.context.diff)
 
@@ -200,6 +213,7 @@ class _Discover2(State):
 
     @transitions('Diff3')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Discover2'))
 
         # Trivial discovery
         # Assume the state is the same as current desired state
@@ -214,6 +228,7 @@ class _Start(State):
 
     @transitions('Waiting')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Start'))
         controller.changeState(Waiting)
 
 
@@ -225,6 +240,7 @@ class _Diff2(State):
     @transitions('Resolve2')
     @transitions('Waiting')
     def start(self, controller):
+        controller.context.stream.put_message(FSMState('Diff2'))
         controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state)
         print(controller.context.diff)
 
@@ -239,6 +255,10 @@ Diff2 = _Diff2()
 
 
 class _Retry(State):
+
+
+    def start(self, controller):
+        controller.context.stream.put_message(FSMState('Retry'))
 
     @transitions('Revert')
     def failure(self, controller, message_type, message):

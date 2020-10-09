@@ -15,6 +15,7 @@ Options:
     --project-src=<d>       Copy project files this directory [default: .]
     --inventory=<i>         Inventory to use
     --cwd=<c>               Change working directory on start
+    --stream=<s>            Websocket channel to stream telemetry to
 """
 
 from gevent import monkey
@@ -34,6 +35,7 @@ from .client import ZMQClientChannel
 from .server import ZMQServerChannel
 from .util import ConsoleTraceLog, check_state
 from .messages import DesiredState, SystemState
+from .stream import WebsocketChannel
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
@@ -89,6 +91,14 @@ def ansible_state_monitor(parsed_args):
     if parsed_args['--ask-become-pass'] and not secrets['become']:
         secrets['become'] = getpass()
 
+    threads = []
+
+    if parsed_args['--stream']:
+        stream = WebsocketChannel(parsed_args['--stream'])
+        threads.append(stream.thread)
+    else:
+        stream = NullChannel()
+
     project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
 
     with open(parsed_args['<current-state.yml>']) as f:
@@ -98,10 +108,13 @@ def ansible_state_monitor(parsed_args):
         rules = yaml.safe_load(f.read())
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args))
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args), stream)
+    threads.append(worker.thread)
     server = ZMQServerChannel(worker.queue, tracer)
+    threads.append(server.zmq_thread)
+    threads.append(server.controller_thread)
     worker.controller.outboxes['output'] = server.queue
-    gevent.joinall([worker.thread, server.zmq_thread, server.controller_thread])
+    gevent.joinall(threads)
     return 0
 
 
