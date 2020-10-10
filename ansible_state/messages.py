@@ -9,6 +9,7 @@ def serialize(message):
 
 Hello = namedtuple('Hello', [])
 FSMState = namedtuple('FSMState', ['state'])
+Diff = namedtuple('Diff', ['diff'])
 
 DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
 SystemState = namedtuple('SystemState', ['id', 'client_id', 'system_state'])

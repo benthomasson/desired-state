@@ -24,7 +24,10 @@ class AnsibleStateMonitor(object):
         self.project_src = project_src
         self.rules = rules
         self.ran_rules = []
+        self.new_desired_state = None
         self.current_desired_state = current_desired_state
+        self.discovered_system_state = None
+        self.operational_system_state = None
         self.inventory = inventory
         self.tracer = tracer
         self.stream = stream

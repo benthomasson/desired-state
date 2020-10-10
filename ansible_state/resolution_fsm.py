@@ -3,8 +3,8 @@ from gevent_fsm.fsm import State, transitions
 import yaml
 from deepdiff import DeepDiff
 from pprint import pprint
-from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation
-from .messages import FSMState, DesiredState
+from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation, convert_diff
+from .messages import FSMState, DesiredState, Diff
 
 
 class _Discover1(State):
@@ -26,7 +26,7 @@ class _Discover1(State):
                                                                   monitor.inventory,
                                                                   False)
 
-        monitor.discovered_system_state = ansible_state_validation(monitor.secrets,
+        monitor.operational_system_state = ansible_state_validation(monitor.secrets,
                                                                    monitor.project_src,
                                                                    monitor.new_desired_state,
                                                                    monitor.ran_rules,
@@ -162,6 +162,7 @@ class _Diff1(State):
         controller.context.stream.put_message(FSMState('Diff1'))
         controller.context.diff = DeepDiff(controller.context.current_desired_state, controller.context.new_desired_state)
         pprint(controller.context.diff)
+        controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
             controller.changeState(Resolve1)
@@ -243,6 +244,7 @@ class _Diff2(State):
         controller.context.stream.put_message(FSMState('Diff2'))
         controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state)
         print(controller.context.diff)
+        controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
             controller.changeState(Resolve2)
