@@ -10,6 +10,8 @@ def serialize(message):
 Hello = namedtuple('Hello', [])
 FSMState = namedtuple('FSMState', ['state'])
 Diff = namedtuple('Diff', ['diff'])
+ValidationResult = namedtuple('ValidationResult', ['host', 'result'])
+ValidationTask = namedtuple('ValidationTask', ['host', 'task_action', 'result'])
 
 DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
 SystemState = namedtuple('SystemState', ['id', 'client_id', 'system_state'])

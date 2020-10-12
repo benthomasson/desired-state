@@ -5,17 +5,22 @@ import tempfile
 import shutil
 import json
 import re
+import glob
 import ansible_runner
-from pprint import pprint
+from pprint import pprint, pformat
 from collections import OrderedDict
 from deepdiff import DeepDiff, extract
 
-from ansible_state.rule import select_rules_recursive, Action, ACTION_RULES
-from ansible_state.util import ensure_directory
+from .rule import select_rules_recursive, Action, ACTION_RULES
+from .util import ensure_directory
+from .messages import ValidationResult, ValidationTask
+
+
+def null_message_processor(data):
+    pass
 
 
 def convert_diff(diff):
-
     '''
     Converts the DeepDiff structure into a YAML serializable data structure.
     '''
@@ -38,8 +43,9 @@ class PlaybookRunner:
     PlaybookRunner is responsible for setting up and running ansible-runner
     '''
 
-    def __init__(self, new_desired_state, state_diff, destructured_vars_list, playbook, secrets, project_src, inventory):
+    def __init__(self, message_processor, new_desired_state, state_diff, destructured_vars_list, playbook, secrets, project_src, inventory):
         print('PlaybookRunner')
+        self.message_processor = message_processor
         self.inventory = inventory
         self.secrets = secrets
         self.project_src = project_src
@@ -64,8 +70,7 @@ class PlaybookRunner:
         self.write_playbook()
         self.write_inventory()
         self.start_ansible_playbook()
-
-        return True
+        return self.read_result()
 
     def build_project_directory(self):
         self.temp_dir = tempfile.mkdtemp(prefix="ansible_state_playbook")
@@ -156,12 +161,29 @@ class PlaybookRunner:
         self.shutdown = True
 
     def runner_process_message(self, data):
-        # print("runner message:\n{}".format(pprint.pformat(data)))
+        # if data.get('event', '') == 'runner_on_ok':
+        print("runner message:\n{}".format(pformat(data)))
+        self.message_processor(data)
         print(data.get('stdout', ''))
+
+    def read_result(self):
+        artifacts = glob.glob(os.path.join(self.temp_dir, 'artifacts', '*-*-*-*-*'))
+        if len(artifacts) != 1:
+            # We cannot determine the result if there is 0 or more than 1 artifact directories
+            return None
+        artifacts = artifacts[0]
+        if not os.path.isdir(artifacts):
+            # If artifacts is not a directory we cannot determine the result
+            return None
+        rc = os.path.join(artifacts, 'rc')
+        if not os.path.exists(rc):
+            # Cannot determine result if rc does not exist
+            return None
+        with open(rc) as f:
+            return 0 == int(f.read())
 
 
 def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
-
     '''
     ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
     between two version of state: current_desired_state and new_desired_state.
@@ -286,7 +308,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
             ran_rules.append((rule, changed_subtree_path, subtree, inventory_name))
 
-    PlaybookRunner(new_desired_state,
+    PlaybookRunner(null_message_processor,
+                   new_desired_state,
                    diff,
                    destructured_vars_list,
                    plays,
@@ -334,7 +357,7 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
         if 'tasks' in rule.get(ACTION_RULES[Action.RETRIEVE], {}):
             play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks')},
-                                     'name': 'include retrieve'})
+                                  'name': 'include retrieve'})
 
         print(play)
 
@@ -342,7 +365,8 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
         destructured_vars_list.append(destructured_vars)
         discovered_rules.append([discovery_id, changed_subtree_path, subtree])
 
-    runner = PlaybookRunner(new_desired_state,
+    runner = PlaybookRunner(null_message_processor,
+                            new_desired_state,
                             diff,
                             destructured_vars_list,
                             plays,
@@ -399,7 +423,7 @@ def destructure_vars(rule, subtree):
     return destructured_vars
 
 
-def ansible_state_validation(secrets, project_src, current_state, ran_rules, inventory, explain):
+def ansible_state_validation(monitor, secrets, project_src, current_state, ran_rules, inventory, explain):
 
     plays = []
 
@@ -433,7 +457,20 @@ def ansible_state_validation(secrets, project_src, current_state, ran_rules, inv
         destructured_vars_list.append(destructured_vars)
         validated_rules.append([changed_subtree_path, subtree])
 
-    runner = PlaybookRunner(current_state,
+    def runner_process_message(data):
+        if data.get('event', '') == 'runner_on_ok':
+            event_data = data.get('event_data', {})
+            if event_data.get('task_action', '') not in ['include_tasks', 'include_vars']:
+                monitor.stream.put_message(ValidationTask(event_data.get('host'),
+                                                          event_data.get('task_action', ''),
+                                                          'ok'))
+        if data.get('event', '') == 'playbook_on_stats':
+            event_data = data.get('event_data', {})
+            for host in event_data.get('ok', {}).keys():
+                monitor.stream.put_message(ValidationResult(host, 'ok'))
+
+    runner = PlaybookRunner(runner_process_message,
+                            current_state,
                             {},
                             destructured_vars_list,
                             plays,

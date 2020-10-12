@@ -7,6 +7,30 @@ from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_val
 from .messages import FSMState, DesiredState, Diff
 
 
+class _Validate1(State):
+
+    @transitions('Diff2')
+    def start(self, controller):
+        controller.context.stream.put_message(FSMState('Validate1'))
+
+        # Trivial discovery
+        # Assume the state is the same as new desired state
+
+        monitor = controller.context
+
+        monitor.operational_system_state = ansible_state_validation(monitor,
+                                                                    monitor.secrets,
+                                                                    monitor.project_src,
+                                                                    monitor.new_desired_state,
+                                                                    monitor.ran_rules,
+                                                                    monitor.inventory,
+                                                                    False)
+        controller.changeState(Waiting)
+
+
+Validate1 = _Validate1()
+
+
 class _Discover1(State):
 
     @transitions('Diff2')
@@ -26,12 +50,6 @@ class _Discover1(State):
                                                                   monitor.inventory,
                                                                   False)
 
-        monitor.operational_system_state = ansible_state_validation(monitor.secrets,
-                                                                   monitor.project_src,
-                                                                   monitor.new_desired_state,
-                                                                   monitor.ran_rules,
-                                                                   monitor.inventory,
-                                                                   False)
         controller.changeState(Diff2)
 
 
@@ -239,7 +257,7 @@ Start = _Start()
 class _Diff2(State):
 
     @transitions('Resolve2')
-    @transitions('Waiting')
+    @transitions('Validate1')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff2'))
         controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state)
@@ -250,14 +268,13 @@ class _Diff2(State):
             controller.changeState(Resolve2)
         else:
             controller.context.current_desired_state = controller.context.new_desired_state
-            controller.changeState(Waiting)
+            controller.changeState(Validate1)
 
 
 Diff2 = _Diff2()
 
 
 class _Retry(State):
-
 
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Retry'))
