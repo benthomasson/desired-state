@@ -65,12 +65,12 @@ class _Help(State):
 Help = _Help()
 
 
-class _Resolve1(State):
+class _Reconcile1(State):
 
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
-        controller.context.stream.put_message(FSMState('Resolve1'))
+        controller.context.stream.put_message(FSMState('Reconcile1'))
 
         monitor = controller.context
 
@@ -88,15 +88,15 @@ class _Resolve1(State):
             controller.changeState(Retry)
 
 
-Resolve1 = _Resolve1()
+Reconcile1 = _Reconcile1()
 
 
-class _Resolve2(State):
+class _Reconcile2(State):
 
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
-        controller.context.stream.put_message(FSMState('Resolve2'))
+        controller.context.stream.put_message(FSMState('Reconcile2'))
 
         monitor = controller.context
 
@@ -114,15 +114,15 @@ class _Resolve2(State):
             controller.changeState(Retry)
 
 
-Resolve2 = _Resolve2()
+Reconcile2 = _Reconcile2()
 
 
-class _Resolve3(State):
+class _Reconcile3(State):
 
     @transitions('Discover1')
     @transitions('Retry')
     def start(self, controller):
-        controller.context.stream.put_message(FSMState('Resolve3'))
+        controller.context.stream.put_message(FSMState('Reconcile3'))
 
         monitor = controller.context
 
@@ -140,14 +140,14 @@ class _Resolve3(State):
             controller.changeState(Retry)
 
 
-Resolve3 = _Resolve3()
+Reconcile3 = _Reconcile3()
 
 
 class _Waiting(State):
 
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Waiting'))
-        print("resolution_fsm buffered_messages", len(controller.context.buffered_messages))
+        print("reconciliation_fsm buffered_messages", len(controller.context.buffered_messages))
         if not controller.context.buffered_messages.empty():
             controller.context.queue.put(controller.context.buffered_messages.get())
 
@@ -174,7 +174,7 @@ Waiting = _Waiting()
 
 class _Diff1(State):
 
-    @transitions('Resolve1')
+    @transitions('Reconcile1')
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff1'))
@@ -183,7 +183,7 @@ class _Diff1(State):
         controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
-            controller.changeState(Resolve1)
+            controller.changeState(Reconcile1)
         else:
             controller.changeState(Waiting)
 
@@ -212,7 +212,7 @@ Revert = _Revert()
 
 class _Diff3(State):
 
-    @transitions('Resolve3')
+    @transitions('Reconcile3')
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff3'))
@@ -220,7 +220,7 @@ class _Diff3(State):
         print(controller.context.diff)
 
         if controller.context.diff:
-            controller.changeState(Resolve3)
+            controller.changeState(Reconcile3)
         else:
             controller.changeState(Waiting)
 
@@ -256,7 +256,7 @@ Start = _Start()
 
 class _Diff2(State):
 
-    @transitions('Resolve2')
+    @transitions('Reconcile2')
     @transitions('Validate1')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff2'))
@@ -265,7 +265,7 @@ class _Diff2(State):
         controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
-            controller.changeState(Resolve2)
+            controller.changeState(Reconcile2)
         else:
             controller.context.current_desired_state = controller.context.new_desired_state
             controller.changeState(Validate1)

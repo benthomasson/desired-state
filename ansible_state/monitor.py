@@ -6,7 +6,7 @@ import json
 from gevent.queue import Queue
 from gevent_fsm.fsm import FSMController, Channel
 
-from . import resolution_fsm
+from . import reconciliation_fsm
 
 from .messages import Inventory, Rules, DesiredState
 
@@ -32,7 +32,7 @@ class AnsibleStateMonitor(object):
         self.tracer = tracer
         self.stream = stream
         self.buffered_messages = Queue()
-        self.controller = FSMController(self, "resolution_fsm", fsm_id, resolution_fsm.Start, self.tracer, self.tracer)
+        self.controller = FSMController(self, "reconciliation_fsm", fsm_id, reconciliation_fsm.Start, self.tracer, self.tracer)
         self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
         self.stream.put_message(Inventory(convert_inventory(inventory)))
