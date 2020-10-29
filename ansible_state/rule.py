@@ -13,6 +13,7 @@ class Action(Enum):
     UPDATE = 'UPDATE'
     RETRIEVE = 'RETRIEVE'
     DELETE = 'DELETE'
+    RENAME = 'RENAME'
     VALIDATE = 'VALIDATE'
 
 
@@ -20,6 +21,7 @@ ACTION_RULES = {Action.CREATE: 'create',
                 Action.UPDATE: 'update',
                 Action.RETRIEVE: 'retrieve',
                 Action.DELETE: 'delete',
+                Action.RENAME: 'rename',
                 Action.VALIDATE: 'validate'}
 
 

@@ -6,7 +6,7 @@ import re
 import yaml
 
 from ansible_state.util import make_matcher
-from ansible_state.rule import select_rules
+from ansible_state.rule import select_rules, select_rules_recursive
 
 def test_rule1():
 
@@ -208,3 +208,65 @@ def test_rules_delete():
     assert len(matching_rules) == 1
     assert matching_rules[0][2].groups()[0] == "root['routers'][0]"
 
+
+def test_rules_rename():
+
+    '''
+    Rules based on position may be able to detect name changes easily since
+    the identifier is inside the data structure.  Reordering the data may
+    cause unintended name changes.
+
+    Possible solutions include:
+        sorting the elements in a list by identifier before detecting changes
+    '''
+
+    t1 = yaml.safe_load('''
+    routers:
+        - name: R1
+          interfaces:
+            - name: eth1
+              ip_address: 1.1.1.1
+    ''')
+
+    t2 = yaml.safe_load('''
+    routers:
+        - name: R2
+          interfaces:
+            - name: eth1
+              ip_address: 1.1.1.1
+    ''')
+    current_desired_state = t1
+    new_desired_state = t2
+
+    diff = DeepDiff(t1, t2)
+    assert diff == {'values_changed': {"root['routers'][0]['name']": {'new_value': 'R2', 'old_value': 'R1'}}}
+
+    rules = yaml.safe_load(r'''
+                           rules:
+                            - rule_selector: root['routers'][\d+]
+                              inventory_selector: "['name']"
+                           ''')
+
+    for rule in rules['rules']:
+        matcher = make_matcher(rule['rule_selector'])
+        changed_path = list(diff['values_changed'].keys())[0]
+        match =  re.match(matcher, changed_path)
+        assert match
+
+    matching_rules = select_rules(diff, rules['rules'])
+    assert len(matching_rules) == 1
+    assert matching_rules[0][2].groups()[0] == "root['routers'][0]"
+
+    matching_rules = select_rules_recursive(diff, rules['rules'], t1, t2)
+    assert len(matching_rules) == 1
+    assert matching_rules[0][2].groups()[0] == "root['routers'][0]"
+
+    match = matching_rules[0][2]
+    print(match)
+
+    changed_subtree_path = match.groups()[0]
+
+    new_subtree = extract(new_desired_state, changed_subtree_path)
+    old_subtree = extract(current_desired_state, changed_subtree_path)
+
+    assert False
