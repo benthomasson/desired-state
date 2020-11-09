@@ -79,7 +79,7 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
             if match:
                 matching_rules.append(('type_changes', rule, match, None))
 
-        # Handles case in YAML where an empty dict defaults to None type
+        # Handles case in YAML where an empty dict defaults to None type on the old state
         if value.get('old_type') == type(None) and value.get('new_type') == dict:
             # Try the matcher against all the keys in the dict
             for dict_key in value.get('new_value').keys():
@@ -89,6 +89,17 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
                     if match:
                         matching_rules.append(('type_changes', rule, match, None))
             select_rules_recursive_helper(diff, matchers, matching_rules, key, value.get('new_value'))
+
+        # Handles case in YAML where an empty dict defaults to None type on the new state
+        if value.get('old_type') == dict and value.get('new_type') == type(None):
+            # Try the matcher against all the keys in the dict
+            for dict_key in value.get('old_value').keys():
+                old_key = f"{key}['{dict_key}']"
+                for (matcher, rule) in matchers:
+                    match = re.match(matcher, old_key)
+                    if match:
+                        matching_rules.append(('type_changes', rule, match, None))
+            select_rules_recursive_helper(diff, matchers, matching_rules, key, value.get('old_value'))
 
     return matching_rules
 
