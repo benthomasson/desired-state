@@ -8,10 +8,9 @@ import re
 import glob
 import ansible_runner
 from pprint import pprint, pformat
-from collections import OrderedDict
 from deepdiff import DeepDiff, extract
 
-from .rule import select_rules_recursive, Action, ACTION_RULES
+from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
 from .util import ensure_directory
 from .messages import ValidationResult, ValidationTask
 
@@ -183,60 +182,6 @@ class PlaybookRunner:
             return 0 == int(f.read())
 
 
-def deduplicate_rules(matching_rules):
-    # Deduplicate the rules since some rules may match more than once when using recursive rule selection
-
-    dedup_matching_rules = OrderedDict()
-
-    for matching_rule in matching_rules:
-        _, _, match, _ = matching_rule
-        changed_subtree_path = match.groups()[0]
-        if changed_subtree_path not in dedup_matching_rules:
-            dedup_matching_rules[changed_subtree_path] = matching_rule
-
-    dedup_matching_rules = list(dedup_matching_rules.values())
-
-    return dedup_matching_rules
-
-
-def get_rule_action_subtree(matching_rule, current_desired_state, new_desired_state):
-
-    change_type, rule, match, value = matching_rule
-    print('change_type', change_type)
-    print('rule', rule)
-    print('match', match)
-    print('value', value)
-    changed_subtree_path = match.groups()[0]
-    print('changed_subtree_path', changed_subtree_path)
-    try:
-        new_subtree = extract(new_desired_state, changed_subtree_path)
-        new_subtree_missing = False
-    except (KeyError, IndexError, TypeError):
-        new_subtree_missing = True
-    try:
-        old_subtree = extract(current_desired_state, changed_subtree_path)
-        old_subtree_missing = False
-    except (KeyError, IndexError, TypeError):
-        old_subtree_missing = True
-    print('new_subtree_missing', new_subtree_missing)
-    print('old_subtree_missing', old_subtree_missing)
-
-    if new_subtree_missing is False and old_subtree_missing is False:
-        action = Action.UPDATE
-        subtree = new_subtree
-    elif new_subtree_missing and old_subtree_missing is False:
-        action = Action.DELETE
-        subtree = old_subtree
-    elif old_subtree_missing and new_subtree_missing is False:
-        action = Action.CREATE
-        subtree = new_subtree
-    else:
-        assert False, "Logic bug"
-    print('action', action)
-
-    return action, subtree
-
-
 def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
     '''
     ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
@@ -270,6 +215,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
     destructured_vars_list = []
 
     for matching_rule in dedup_matching_rules:
+        change_type, rule, match, value = matching_rule
+        changed_subtree_path = match.groups()[0]
         action, subtree = get_rule_action_subtree(matching_rule)
         print('action', action)
 
