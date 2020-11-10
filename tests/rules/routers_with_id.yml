@@ -1,4 +1,4 @@
 rules:
 - rule_selector: "root['routers'][\\d+]"
   inventory_selector: "['name']"
-  key_id: name
+  id_key: name

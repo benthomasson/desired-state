@@ -9,6 +9,7 @@ import yaml
 from ansible_state.util import make_matcher
 from ansible_state.rule import select_rules, select_rules_recursive, Action
 from ansible_state.diff import deduplicate_rules, get_rule_action_subtree
+from ansible_state.transform import transform_state
 
 from pprint import pprint
 
@@ -321,9 +322,15 @@ def run_diff_get_action(a, b, rules):
 
 def run_diff_get_actions(a, b, rules):
 
+    a = transform_state(a, rules)
+    b = transform_state(b, rules)
+
     diff = DeepDiff(a, b)
+    pprint(diff)
     matching_rules = select_rules_recursive(diff, rules['rules'], a, b)
+    pprint(matching_rules)
     dedup_matching_rules = deduplicate_rules(matching_rules)
+    pprint(dedup_matching_rules)
     return [get_rule_action_subtree(x, a, b) for x in dedup_matching_rules]
 
 def test_rules_dictionary_add_item():
@@ -401,8 +408,6 @@ def test_empty_remove_item():
     dedup_matching_rules = deduplicate_rules(matching_rules)
     pprint(dedup_matching_rules)
     action, subtree = run_diff_get_action(t1, t2, rules)
-          
-    action, subtree = get_rule_action_subtree(dedup_matching_rules[0], t1, t2)
 
     assert action == Action.DELETE
     assert subtree == {'name': 'R1'}
@@ -416,11 +421,11 @@ def test_rules_list_insert_element2():
 
     t1 = load_state('add_list_value', 'B')
     t2 = load_state('add_list_value', 'A')
-    rules = load_rule('routers_simple')
+    rules = load_rule('routers_with_id')
 
-    action, subtree = run_diff_get_action(t1, t2, rules)
+    actions = run_diff_get_actions(t1, t2, rules)
 
-    assert action == Action.CREATE
+    assert actions[0] == Action.CREATE
 
 
 def test_rules_list_remove_element2():
@@ -431,7 +436,7 @@ def test_rules_list_remove_element2():
 
     t1 = load_state('add_list_value', 'A')
     t2 = load_state('add_list_value', 'B')
-    rules = load_rule('routers_simple')
+    rules = load_rule('routers_with_id')
 
     actions = run_diff_get_actions(t1, t2, rules)
 
@@ -444,7 +449,7 @@ def test_reorder_list():
 
     t1 = load_state('reorder_list', 'A')
     t2 = load_state('reorder_list', 'B')
-    rules = load_rule('routers_simple')
+    rules = load_rule('routers_with_id')
 
     actions = run_diff_get_actions(t1, t2, rules)
 

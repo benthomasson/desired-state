@@ -13,6 +13,7 @@ from deepdiff import DeepDiff, extract
 from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
 from .util import ensure_directory
 from .messages import ValidationResult, ValidationTask
+from .transform import transform_state
 
 
 def null_message_processor(data):
@@ -190,7 +191,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
     # Find the difference between states
 
-    diff = DeepDiff(current_desired_state, new_desired_state)
+    diff = DeepDiff(transform_state(current_desired_state), transform_state(new_desired_state))
     print(diff)
 
     # Find matching rules
