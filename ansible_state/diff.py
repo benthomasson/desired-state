@@ -191,7 +191,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
     # Find the difference between states
 
-    diff = DeepDiff(transform_state(current_desired_state), transform_state(new_desired_state))
+    diff = DeepDiff(transform_state(current_desired_state, rules), transform_state(new_desired_state, rules))
     print(diff)
 
     # Find matching rules
@@ -218,7 +218,9 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
     for matching_rule in dedup_matching_rules:
         change_type, rule, match, value = matching_rule
         changed_subtree_path = match.groups()[0]
-        action, subtree = get_rule_action_subtree(matching_rule)
+        action, subtree = get_rule_action_subtree(matching_rule,
+                                                  current_desired_state,
+                                                  new_desired_state)
         print('action', action)
 
         print('rule action', rule.get(ACTION_RULES[action]))

@@ -277,7 +277,7 @@ def test_rules_list_insert_element():
 
 def test_rules_list_remove_element():
     '''
-    This case tests insertion into a list.  It should cause one add
+    This case tests insertion into a list.  It should cause one remove
     instead of multiple changes.
     '''
 
