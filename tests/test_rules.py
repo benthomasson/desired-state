@@ -430,8 +430,6 @@ def test_rules_list_insert_element2():
 
 def test_rules_list_remove_element2():
     '''
-    This case tests insertion into a list.  It should cause one add
-    instead of multiple changes.
     '''
 
     t1 = load_state('add_list_value', 'A')

@@ -19,8 +19,12 @@ def transform_state(state, rules):
                 # pop off the list regex
                 rule_selector = rule_selector[0:-len(r'[\d+]')]
                 # get the parent object and the key for later
+                # rule_selector is of the form parent[key]
+                # split on [
                 parent, _, key = rule_selector.rpartition('[')
+                # strip off trailng ]
                 key = key[0:-1]
+                # strip off quotes
                 key = key.strip('\'')
                 parent = extract(state, rule_selector.rpartition('[')[0])
                 # get the original value
