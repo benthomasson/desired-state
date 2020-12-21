@@ -178,7 +178,7 @@ class _Diff1(State):
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff1'))
-        controller.context.diff = DeepDiff(controller.context.current_desired_state, controller.context.new_desired_state)
+        controller.context.diff = DeepDiff(controller.context.current_desired_state, controller.context.new_desired_state, ignore_order=True)
         pprint(controller.context.diff)
         controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 
@@ -216,7 +216,7 @@ class _Diff3(State):
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff3'))
-        controller.context.diff = DeepDiff(controller.context.discovered_system_state, controller.context.current_desired_state)
+        controller.context.diff = DeepDiff(controller.context.discovered_system_state, controller.context.current_desired_state, ignore_order=True)
         print(controller.context.diff)
 
         if controller.context.diff:
@@ -260,7 +260,7 @@ class _Diff2(State):
     @transitions('Validate1')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff2'))
-        controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state)
+        controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state, ignore_order=True)
         print(controller.context.diff)
         controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 

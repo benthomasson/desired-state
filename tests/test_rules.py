@@ -11,7 +11,7 @@ from ansible_state.rule import select_rules, select_rules_recursive, Action
 from ansible_state.diff import deduplicate_rules, get_rule_action_subtree
 from ansible_state.transform import transform_state
 
-from pprint import pprint, pformat
+from pprint import pformat
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -28,7 +28,7 @@ def load_state(name, version):
 
 def run_diff_get_action(a, b, rules):
 
-    diff = DeepDiff(a, b)
+    diff = DeepDiff(a, b, ignore_order=True)
     matching_rules = select_rules_recursive(diff, rules['rules'], a, b)
     dedup_matching_rules = deduplicate_rules(matching_rules)
     assert len(dedup_matching_rules) >= 1, "No rules found"
@@ -42,12 +42,9 @@ def run_diff_get_actions(a, b, rules):
     a = transform_state(a, rules)
     b = transform_state(b, rules)
 
-    diff = DeepDiff(a, b)
-    pprint(diff)
+    diff = DeepDiff(a, b, ignore_order=True)
     matching_rules = select_rules_recursive(diff, rules['rules'], a, b)
-    pprint(matching_rules)
     dedup_matching_rules = deduplicate_rules(matching_rules)
-    pprint(dedup_matching_rules)
     return [get_rule_action_subtree(x, a, b) for x in dedup_matching_rules]
 
 def test_rule1():
@@ -169,8 +166,6 @@ def test_rules_list_insert_element():
 
     actions = run_diff_get_actions(t1, t2, rules)
 
-    pprint(actions)
-
     assert len(actions) == 1
     assert actions[0][0] == Action.CREATE
     assert actions[0][1] == {'name': 'R2'}
@@ -188,8 +183,6 @@ def test_rules_list_remove_element():
 
     actions = run_diff_get_actions(t1, t2, rules)
 
-    pprint(actions)
-
     assert len(actions) == 1
     assert actions[0][0] == Action.DELETE
     assert actions[0][1] == {'name': 'R2'}
@@ -205,18 +198,13 @@ def test_rules_dictionary_add_item():
     t2 = load_state('add_dict_value', 'B')
     rules = load_rule('routers_simple')
 
-    diff = DeepDiff(t1, t2)
-    matching_rules = select_rules_recursive(diff, rules['rules'], t1, t2)
-    dedup_matching_rules = deduplicate_rules(matching_rules)
-    action, subtree = get_rule_action_subtree(dedup_matching_rules[0], t1, t2)
+    actions = run_diff_get_actions(t1, t2, rules)
 
-    assert action == Action.UPDATE
-    assert subtree == {'name': 'R1', 'router-id': '1.1.1.1'}
+    print(actions)
 
-    action, subtree = run_diff_get_action(t1, t2, rules)
-
-    assert action == Action.UPDATE
-    assert subtree == {'name': 'R1', 'router-id': '1.1.1.1'}
+    assert len(actions) == 1
+    assert actions[0][0] == Action.UPDATE
+    assert actions[0][1] == {'name': 'R1', 'router-id': '1.1.1.1'}
 
 
 def test_rules_dictionary_remove_item():
@@ -244,10 +232,6 @@ def test_empty_add_item():
     t2 = load_state('empty_add_item', 'B')
     rules = load_rule('routers_simple')
 
-    diff = DeepDiff(t1, t2)
-    matching_rules = select_rules_recursive(diff, rules['rules'], t1, t2)
-    dedup_matching_rules = deduplicate_rules(matching_rules)
-
     action, subtree = run_diff_get_action(t1, t2, rules)
 
     assert action == Action.CREATE
@@ -263,12 +247,6 @@ def test_empty_remove_item():
     t2 = load_state('empty_add_item', 'A')
     rules = load_rule('routers_simple')
 
-    diff = DeepDiff(t1, t2)
-    pprint(diff)
-    matching_rules = select_rules_recursive(diff, rules['rules'], t1, t2)
-    pprint(matching_rules)
-    dedup_matching_rules = deduplicate_rules(matching_rules)
-    pprint(dedup_matching_rules)
     action, subtree = run_diff_get_action(t1, t2, rules)
 
     assert action == Action.DELETE
@@ -287,9 +265,7 @@ def test_rules_list_insert_element2():
 
     actions = run_diff_get_actions(t1, t2, rules)
 
-    pprint(actions)
-
-    assert actions[0] == Action.CREATE
+    assert actions[0][0] == Action.CREATE
 
 
 def test_rules_list_remove_element2():
@@ -302,9 +278,7 @@ def test_rules_list_remove_element2():
 
     actions = run_diff_get_actions(t1, t2, rules)
 
-    pprint(actions)
-
-    assert actions[0] == Action.DELETE
+    assert actions[0][0] == Action.DELETE
 
 
 def test_reorder_list():

@@ -191,7 +191,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
     # Find the difference between states
 
-    diff = DeepDiff(transform_state(current_desired_state, rules), transform_state(new_desired_state, rules))
+    diff = DeepDiff(transform_state(current_desired_state, rules), transform_state(new_desired_state, rules), ignore_order=True)
     print(diff)
 
     # Find matching rules
@@ -289,7 +289,7 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
     # Discovers the state of a subset of a system
 
-    diff = DeepDiff(current_desired_state, new_desired_state)
+    diff = DeepDiff(current_desired_state, new_desired_state, ignore_order=True)
 
     # deep copy
     new_discovered_state = yaml.safe_load(yaml.safe_dump(new_desired_state))
