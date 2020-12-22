@@ -166,6 +166,8 @@ def test_rules_list_insert_element():
 
     actions = run_diff_get_actions(t1, t2, rules)
 
+    print(pformat(actions))
+
     assert len(actions) == 1
     assert actions[0][0] == Action.CREATE
     assert actions[0][1] == {'name': 'R2'}
@@ -182,6 +184,8 @@ def test_rules_list_remove_element():
     rules = load_rule('routers_simple')
 
     actions = run_diff_get_actions(t1, t2, rules)
+
+    print(pformat(actions))
 
     assert len(actions) == 1
     assert actions[0][0] == Action.DELETE
@@ -251,34 +255,6 @@ def test_empty_remove_item():
 
     assert action == Action.DELETE
     assert subtree == {'name': 'R1'}
-
-
-def test_rules_list_insert_element2():
-    '''
-    This case tests insertion into a list.  It should cause one add
-    instead of multiple changes.
-    '''
-
-    t1 = load_state('add_list_value', 'B')
-    t2 = load_state('add_list_value', 'A')
-    rules = load_rule('routers_with_id')
-
-    actions = run_diff_get_actions(t1, t2, rules)
-
-    assert actions[0][0] == Action.CREATE
-
-
-def test_rules_list_remove_element2():
-    '''
-    '''
-
-    t1 = load_state('add_list_value', 'A')
-    t2 = load_state('add_list_value', 'B')
-    rules = load_rule('routers_with_id')
-
-    actions = run_diff_get_actions(t1, t2, rules)
-
-    assert actions[0][0] == Action.DELETE
 
 
 def test_reorder_list():

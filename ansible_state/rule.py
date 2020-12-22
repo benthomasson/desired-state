@@ -51,12 +51,14 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
                 matching_rules.append(('dictionary_item_removed', rule, match, None))
 
     for item in diff.get('iterable_item_added', []):
+        print(item)
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
                 matching_rules.append(('iterable_item_added', rule, match, None))
 
     for item in diff.get('iterable_item_removed', []):
+        print(item)
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
@@ -204,7 +206,13 @@ def get_rule_action_subtree(matching_rule, current_desired_state, new_desired_st
     print('new_subtree_missing', new_subtree_missing)
     print('old_subtree_missing', old_subtree_missing)
 
-    if new_subtree_missing is False and old_subtree_missing is False:
+    if change_type == 'iterable_item_added':
+        action = Action.CREATE
+        subtree = new_subtree
+    elif change_type == 'iterable_item_removed':
+        action = Action.DELETE
+        subtree = old_subtree
+    elif new_subtree_missing is False and old_subtree_missing is False:
         action = Action.UPDATE
         subtree = new_subtree
     elif new_subtree_missing and old_subtree_missing is False:
