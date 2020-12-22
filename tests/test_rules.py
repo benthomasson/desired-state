@@ -9,7 +9,6 @@ import yaml
 from ansible_state.util import make_matcher
 from ansible_state.rule import select_rules, select_rules_recursive, Action
 from ansible_state.diff import deduplicate_rules, get_rule_action_subtree
-from ansible_state.transform import transform_state
 
 from pprint import pformat
 
@@ -38,9 +37,6 @@ def run_diff_get_action(a, b, rules):
 
 
 def run_diff_get_actions(a, b, rules):
-
-    a = transform_state(a, rules)
-    b = transform_state(b, rules)
 
     diff = DeepDiff(a, b, ignore_order=True)
     matching_rules = select_rules_recursive(diff, rules['rules'], a, b)
