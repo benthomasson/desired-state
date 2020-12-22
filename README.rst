@@ -16,7 +16,7 @@ ansible-state
 
 
 
-A desire state system for ansible
+A desired state system for ansible
 
 
 * Free software: Apache Software License 2.0

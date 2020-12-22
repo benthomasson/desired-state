@@ -8,6 +8,7 @@ pytest = "*"
 flake8 = "*"
 autopep8 = "*"
 sphinx = "*"
+sphinx-rtd-theme = "*"
 
 [packages]
 deepdiff = "*"
@@ -23,7 +24,6 @@ Sphinx = "==1.8.5"
 gevent-fsm = "*"
 pyzmq = "*"
 watchdog-gevent = "*"
-ansible = "*"
 websocket-client = "*"
 
 [requires]
