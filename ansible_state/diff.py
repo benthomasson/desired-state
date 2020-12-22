@@ -11,7 +11,7 @@ from pprint import pprint, pformat
 from deepdiff import DeepDiff, extract
 
 from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
-from .util import ensure_directory
+from .util import ensure_directory, build_inventory_selector
 from .messages import ValidationResult, ValidationTask
 
 
@@ -238,7 +238,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
         # Determine the inventory to run on
 
-        inventory_selector = rule.get('inventory_selector')
+        inventory_selector = build_inventory_selector(rule.get('inventory_selector'))
         if inventory_selector:
             try:
                 inventory_name = extract(subtree, inventory_selector)

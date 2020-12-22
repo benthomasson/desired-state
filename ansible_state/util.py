@@ -64,6 +64,9 @@ def build_rule_selector(dotted_selector):
     if parts[0] == "root":
         selector.append('root')
         start = 1
+    elif parts[0] == "node":
+        selector.append('node')
+        start = 1
     else:
         start = 0
 
@@ -74,3 +77,5 @@ def build_rule_selector(dotted_selector):
             selector.append(f"['{part}']")
 
     return "".join(selector)
+
+build_inventory_selector = build_rule_selector

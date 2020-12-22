@@ -63,7 +63,7 @@ def test_rule2():
 
     rule = yaml.safe_load(r'''
                       rule_selector: root.routers.index
-                      inventory_selector: name
+                      inventory_selector: node.name
                       create:
                           - role: create_role
                       retrieve:
@@ -92,7 +92,7 @@ def test_rules_change():
     rules = yaml.safe_load(r'''
                            rules:
                             - rule_selector: root.routers.index
-                              inventory_selector: name
+                              inventory_selector: node.name
                            ''')
 
 
