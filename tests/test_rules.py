@@ -50,7 +50,7 @@ def run_diff_get_actions(a, b, rules):
 def test_rule1():
 
     rule = yaml.safe_load(r'''
-                      rule_selector: root['routers'][\d+]
+                      rule_selector: root.routers.index
                       inventory: all
                       create:
                           - tasks: create_tasks.yml
@@ -66,7 +66,7 @@ def test_rule1():
 def test_rule2():
 
     rule = yaml.safe_load(r'''
-                      rule_selector: root['routers'][\d+]
+                      rule_selector: root.routers.index
                       inventory_selector: name
                       create:
                           - role: create_role
@@ -95,8 +95,8 @@ def test_rules_change():
 
     rules = yaml.safe_load(r'''
                            rules:
-                            - rule_selector: root['routers'][\d+]
-                              inventory_selector: "['name']"
+                            - rule_selector: root.routers.index
+                              inventory_selector: name
                            ''')
 
 
@@ -263,7 +263,7 @@ def test_reorder_list():
 
     t1 = load_state('reorder_list', 'A')
     t2 = load_state('reorder_list', 'B')
-    rules = load_rule('routers_with_id')
+    rules = load_rule('routers_simple')
 
     actions = run_diff_get_actions(t1, t2, rules)
 

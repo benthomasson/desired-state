@@ -38,3 +38,39 @@ class ConsoleTraceLog(object):
 
     def send_trace_message(self, message):
         print(message)
+
+
+def build_rule_selector(dotted_selector):
+    '''
+    The dotted selector should have the form of:
+        root
+        root.key
+        root.key[.key]...
+        root.key.index
+
+    Where [.key]... means a repeating element
+    index is a special key that means a list index
+    root is a special key that only matches the root
+    of the state.
+
+    This function will return a regular expression
+    that can be fed into deepdiff.extract.
+    '''
+
+    selector = []
+
+    parts = dotted_selector.split('.')
+
+    if parts[0] == "root":
+        selector.append('root')
+        start = 1
+    else:
+        start = 0
+
+    for part in parts[start:]:
+        if part == "index":
+            selector.append(r'[\d+]')
+        else:
+            selector.append(f"['{part}']")
+
+    return "".join(selector)

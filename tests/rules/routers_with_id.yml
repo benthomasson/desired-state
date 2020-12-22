@@ -1,4 +1,0 @@
-rules:
-- rule_selector: "root['routers'][\\d+]"
-  inventory_selector: "['name']"
-  id_key: name

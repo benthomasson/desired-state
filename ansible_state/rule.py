@@ -1,7 +1,7 @@
 
 
 import re
-from .util import make_matcher
+from .util import make_matcher, build_rule_selector
 from enum import Enum
 from deepdiff import extract
 from collections import OrderedDict
@@ -28,7 +28,7 @@ ACTION_RULES = {Action.CREATE: 'create',
 def select_rules_recursive(diff, rules, current_desired_state, new_desired_state):
 
     matching_rules = []
-    matchers = [(make_matcher(rule['rule_selector']), rule) for rule in rules]
+    matchers = [(make_matcher(build_rule_selector(rule['rule_selector'])), rule) for rule in rules]
 
     for key, value in diff.get('values_changed', {}).items():
         for (matcher, rule) in matchers:
@@ -122,7 +122,7 @@ def select_rules_recursive_helper(diff, matchers, matching_rules, path, value):
 def select_rules(diff, rules):
     matching_rules = []
     for rule in rules:
-        matcher = make_matcher(rule['rule_selector'])
+        matcher = make_matcher(build_rule_selector(rule['rule_selector']))
         for key, value in diff.get('values_changed', {}).items():
             match = re.match(matcher, key)
             if match:
@@ -226,39 +226,3 @@ def get_rule_action_subtree(matching_rule, current_desired_state, new_desired_st
     print('action', action)
 
     return action, subtree
-
-
-def build_rule_selector(dotted_selector):
-    '''
-    The dotted selector should have the form of:
-        root
-        root.key
-        root.key[.key]...
-        root.key.index
-
-    Where [.key]... means a repeating element
-    index is a special key that means a list index
-    root is a special key that only matches the root
-    of the state.
-
-    This function will return a regular expression
-    that can be fed into deepdiff.extract.
-    '''
-
-    selector = []
-
-    parts = dotted_selector.split('.')
-
-    if parts[0] == "root":
-        selector.append('root')
-        start = 1
-    else:
-        start = 0
-
-    for part in parts[start:]:
-        if part == "index":
-            selector.append(r'[\d+]')
-        else:
-            selector.append(f"['{part}']")
-
-    return "".join(selector)
