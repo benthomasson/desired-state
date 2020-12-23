@@ -25,6 +25,7 @@ gevent-fsm = "*"
 pyzmq = "*"
 watchdog-gevent = "*"
 websocket-client = "*"
+jsonschema = "*"
 
 [requires]
 python_version = "3.8"

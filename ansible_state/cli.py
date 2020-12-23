@@ -5,6 +5,7 @@ Usage:
     ansible-state [options] monitor <current-state.yml> <rules.yml>
     ansible-state [options] update-desired-state <new-state.yml>
     ansible-state [options] update-system-state <new-state.yml>
+    ansible-state [options] validate <state.yml> <schema.yml>
 
 Options:
     -h, --help              Show this page
@@ -30,6 +31,7 @@ from collections import defaultdict
 from getpass import getpass
 import gevent_fsm.conf
 
+from .validate import validate
 from .monitor import AnsibleStateMonitor
 from .client import ZMQClientChannel
 from .server import ZMQServerChannel
@@ -71,6 +73,8 @@ def main(args=None):
         return ansible_state_update_desired_state(parsed_args)
     elif parsed_args['update-system-state']:
         return ansible_state_update_system_state(parsed_args)
+    elif parsed_args['validate']:
+        return ansible_state_validate(parsed_args)
     else:
         assert False, 'Update the docopt'
 
@@ -138,3 +142,15 @@ def ansible_state_update_system_state(parsed_args):
     client = ZMQClientChannel()
     client.send(SystemState(0, 0, new_state))
     return 0
+
+
+def ansible_state_validate(parsed_args):
+
+    with open(parsed_args['<state.yml>']) as f:
+        state = yaml.safe_load(f.read())
+
+    with open(parsed_args['<schema.yml>']) as f:
+        schema = yaml.safe_load(f.read())
+
+    validate(state, schema)
+
