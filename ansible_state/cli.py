@@ -31,7 +31,7 @@ from collections import defaultdict
 from getpass import getpass
 import gevent_fsm.conf
 
-from .validate import validate
+from .validate import get_errors
 from .monitor import AnsibleStateMonitor
 from .client import ZMQClientChannel
 from .server import ZMQServerChannel
@@ -152,5 +152,10 @@ def ansible_state_validate(parsed_args):
     with open(parsed_args['<schema.yml>']) as f:
         schema = yaml.safe_load(f.read())
 
-    validate(state, schema)
+
+    for error in get_errors(state, schema):
+        print(error)
+    else:
+        return 0
+    return 1
 
