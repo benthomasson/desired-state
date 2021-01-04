@@ -2,7 +2,7 @@
 
 """
 Usage:
-    ansible-state [options] monitor <current-state.yml> <rules.yml>
+    ansible-state [options] monitor <current-state.yml> [<rules.yml>]
     ansible-state [options] update-desired-state <new-state.yml>
     ansible-state [options] update-system-state <new-state.yml>
     ansible-state [options] validate <state.yml> <schema.yml>
@@ -19,25 +19,25 @@ Options:
     --stream=<s>            Websocket channel to stream telemetry to
 """
 
+from .stream import WebsocketChannel, NullChannel
+from .messages import DesiredState, SystemState
+from .util import ConsoleTraceLog, check_state
+from .server import ZMQServerChannel
+from .client import ZMQClientChannel
+from .monitor import AnsibleStateMonitor
+from .validate import get_errors, validate
+import gevent_fsm.conf
+from getpass import getpass
+from collections import defaultdict
+from docopt import docopt
+import yaml
+import os
+import sys
+import logging
+import gevent
 from gevent import monkey
 monkey.patch_all()
-import gevent
-import logging
-import sys
-import os
-import yaml
-from docopt import docopt
-from collections import defaultdict
-from getpass import getpass
-import gevent_fsm.conf
 
-from .validate import get_errors
-from .monitor import AnsibleStateMonitor
-from .client import ZMQClientChannel
-from .server import ZMQServerChannel
-from .util import ConsoleTraceLog, check_state
-from .messages import DesiredState, SystemState
-from .stream import WebsocketChannel
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
 logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
@@ -79,13 +79,29 @@ def main(args=None):
         assert False, 'Update the docopt'
 
 
-def inventory(parsed_args):
+def inventory(parsed_args, state):
 
-    if not parsed_args['--inventory']:
-        return "[all]\nlocalhost ansible_connection=local\n"
+    if state and 'inventory' in state and os.path.exists(state['inventory']):
+        print('inventory:', state['inventory'])
+        with open(state['inventory']) as f:
+            return f.read()
+    elif not parsed_args['--inventory']:
+        print('inventory:', 'localhost only')
+        return "all:\n  hosts:\n    localhost: ansible_connection=local\n"
+    else:
+        print('inventory:', parsed_args['--inventory'])
+        with open(parsed_args['--inventory']) as f:
+            return f.read()
 
-    with open(parsed_args['--inventory']) as f:
-        return f.read()
+
+def validate_state(new_state):
+
+    state = yaml.safe_load(new_state)
+    if 'schema' in state:
+        if os.path.exists(state['schema']):
+            with open(state['schema']) as f:
+                schema = yaml.safe_load(f.read())
+        validate(state, schema)
 
 
 def ansible_state_monitor(parsed_args):
@@ -108,11 +124,24 @@ def ansible_state_monitor(parsed_args):
     with open(parsed_args['<current-state.yml>']) as f:
         current_desired_state = yaml.safe_load(f.read())
 
-    with open(parsed_args['<rules.yml>']) as f:
-        rules = yaml.safe_load(f.read())
+    if current_desired_state and 'schema' in current_desired_state:
+        if os.path.exists(current_desired_state['schema']):
+            with open(current_desired_state['schema']) as f:
+                schema = yaml.safe_load(f.read())
+        validate(current_desired_state, schema)
+
+    if parsed_args['<rules.yml>']:
+        with open(parsed_args['<rules.yml>']) as f:
+            rules = yaml.safe_load(f.read())
+    elif current_desired_state and 'rules' in current_desired_state:
+        if os.path.exists(current_desired_state['rules']):
+            with open(current_desired_state['rules']) as f:
+                rules = yaml.safe_load(f.read())
+    else:
+        raise Exception('No rules file found')
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args), stream)
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args, current_desired_state), stream)
     threads.append(worker.thread)
     server = ZMQServerChannel(worker.queue, tracer)
     threads.append(server.zmq_thread)
@@ -128,6 +157,8 @@ def ansible_state_update_desired_state(parsed_args):
         new_state = f.read()
         check_state(new_state)
 
+    validate_state(new_state)
+
     client = ZMQClientChannel()
     client.send(DesiredState(0, 0, new_state))
     return 0
@@ -138,6 +169,8 @@ def ansible_state_update_system_state(parsed_args):
     with open(parsed_args['<new-state.yml>']) as f:
         new_state = f.read()
         check_state(new_state)
+
+    validate_state(new_state)
 
     client = ZMQClientChannel()
     client.send(SystemState(0, 0, new_state))
@@ -152,10 +185,8 @@ def ansible_state_validate(parsed_args):
     with open(parsed_args['<schema.yml>']) as f:
         schema = yaml.safe_load(f.read())
 
-
     for error in get_errors(state, schema):
         print(error)
     else:
         return 0
     return 1
-
