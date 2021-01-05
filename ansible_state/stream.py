@@ -65,3 +65,6 @@ class NullChannel(object):
 
     def put(self, message):
         pass
+
+    def put_message(self, message):
+        pass
