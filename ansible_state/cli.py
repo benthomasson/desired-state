@@ -26,6 +26,7 @@ from .server import ZMQServerChannel
 from .client import ZMQClientChannel
 from .monitor import AnsibleStateMonitor
 from .validate import get_errors, validate
+from .collection import split_collection_name, has_rules, has_schema, load_rules, load_schema
 import gevent_fsm.conf
 from getpass import getpass
 from collections import defaultdict
@@ -101,6 +102,10 @@ def validate_state(new_state):
         if os.path.exists(state['schema']):
             with open(state['schema']) as f:
                 schema = yaml.safe_load(f.read())
+        elif has_schema(*split_collection_name(state['schema'])):
+            schema = load_schema(*split_collection_name(state['schema']))
+        else:
+            schema = {}
         validate(state, schema)
 
 
@@ -128,15 +133,28 @@ def ansible_state_monitor(parsed_args):
         if os.path.exists(current_desired_state['schema']):
             with open(current_desired_state['schema']) as f:
                 schema = yaml.safe_load(f.read())
+        elif has_schema(*split_collection_name(current_desired_state['schema'])):
+            schema = load_schema(*split_collection_name(current_desired_state['schema']))
+        else:
+            schema = {}
         validate(current_desired_state, schema)
 
     if parsed_args['<rules.yml>']:
-        with open(parsed_args['<rules.yml>']) as f:
-            rules = yaml.safe_load(f.read())
+        if os.path.exists(parsed_args['<rules.yml>']):
+            with open(parsed_args['<rules.yml>']) as f:
+                rules = yaml.safe_load(f.read())
+        elif has_rules(*split_collection_name(current_desired_state['rules'])):
+            rules = load_rules(*split_collection_name(current_desired_state['rules']))
+        else:
+            raise Exception('No rules file found')
     elif current_desired_state and 'rules' in current_desired_state:
         if os.path.exists(current_desired_state['rules']):
             with open(current_desired_state['rules']) as f:
                 rules = yaml.safe_load(f.read())
+        elif has_rules(*split_collection_name(current_desired_state['rules'])):
+            rules = load_rules(*split_collection_name(current_desired_state['rules']))
+        else:
+            raise Exception('No rules file found')
     else:
         raise Exception('No rules file found')
 

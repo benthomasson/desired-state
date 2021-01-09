@@ -13,6 +13,7 @@ from deepdiff import DeepDiff, extract
 from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
 from .util import ensure_directory, build_inventory_selector
 from .messages import ValidationResult, ValidationTask
+from .collection import split_collection_name, has_tasks, load_tasks
 
 
 def null_message_processor(data):
@@ -182,6 +183,17 @@ class PlaybookRunner:
             return 0 == int(f.read())
 
 
+def find_tasks(file_or_collection):
+
+    if os.path.exists(file_or_collection):
+        task_file = file_or_collection
+    elif has_tasks(*split_collection_name(file_or_collection)):
+        task_file = load_tasks(*split_collection_name(file_or_collection))
+    else:
+        raise Exception("No tasks found at f{file_or_collection}")
+    return task_file
+
+
 def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
     '''
     ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
@@ -255,7 +267,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
                 'tasks': []}
 
         if 'tasks' in rule.get(ACTION_RULES[action], {}):
-            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[action]).get('tasks')},
+            play['tasks'].append({'include_tasks':
+                                  {'file': find_tasks(rule.get(ACTION_RULES[action]).get('tasks'))},
                                   'name': "{0} {1}".format(ACTION_RULES[action], changed_subtree_path)})
 
         if 'become' in rule:
@@ -320,7 +333,8 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
                 'tasks': []}
 
         if 'tasks' in rule.get(ACTION_RULES[Action.RETRIEVE], {}):
-            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks')},
+            play['tasks'].append({'include_tasks':
+                                  {'file': find_tasks(rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks'))},
                                   'name': 'include retrieve'})
 
         print(play)
@@ -412,7 +426,8 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
                 'tasks': []}
 
         if 'tasks' in rule.get(ACTION_RULES[Action.VALIDATE], {}):
-            play['tasks'].append({'include_tasks': {'file': rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks')},
+            play['tasks'].append({'include_tasks':
+                                  {'file': find_tasks(rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks'))},
                                   'name': 'include validation'})
 
         print(play)
