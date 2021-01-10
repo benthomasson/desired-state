@@ -3,7 +3,7 @@ Ansible Desired State Documenation
 
 
 About Ansible Desired State
-```````````````````````````
+---------------------------
 
 Ansible desired state allows you automate your systems by telling
 the automation what state you want that system to be in.   Ansible
@@ -36,7 +36,7 @@ state.  When the rule `fires` it will run a series of tasks or a role
 to automatically remedy the difference in state.
 
 Getting Started with Desired State and Collections
-``````````````````````````````````````````````````
+--------------------------------------------------
 
 Collections and desired state work together to provide an
 easy way to get started with declarative automation.  This
@@ -65,14 +65,23 @@ Then write an initial state file of your system using
 an example from the collection similar to `initial_state.yml`.
 
 
-initial_state.yml
+**initial_state.yml**
 
 .. code-block:: yaml
 
   schema: benthomasson.desired_state.network_schema
   rules: benthomasson.desired_state.network_rules
-  hosts:
-  - name: host1
+
+
+You'll also need an inventory file so Ansible can talk to the hosts.
+
+**inventory.yml**
+
+.. code-block:: yaml
+
+	all:
+	  hosts:
+		host1:
 
 
 Then start the ansible state monitor process that will watch for
@@ -80,13 +89,13 @@ changes in the system state and listen for changes in the desired state.
 
 .. code-block:: bash
 
-    $ ansible-state monitor initial_state.yml rules.yml --inventory inventory.yml
+    $ ansible-state monitor initial_state.yml --inventory inventory.yml
 
 
 Now write a new version of the desired state with the changes that we want to
 make.
 
-desired_state.yml
+**desired_state.yml**
 
 .. code-block:: yaml
 
@@ -112,19 +121,49 @@ and verify that it is working correctly.
 
 If you've Ansible before this should feel familar.  The state file is just a vars
 file and the format is only limited by the schema in the collection.   If there
-isn't a collection yet that 
+isn't a collection yet that supports the system you'd like to automate then
+you can write your own change rules.
+
 
 Getting Started with Desired State without a Collection
-``````````````````````````````````````````````````````
+-------------------------------------------------------
 
-initial_state.yml
+There may not be a collection that supports the system that you want
+to automate.  In that case you can build your own change rules to
+automate the system.
+
+This section requires the domain expert persona and the automation developer
+persona to work together to define a state structure, change rules, and tasks
+or roles that will automate their target domain.   Sometimes
+the domain expert persona and automation developer persona maybe the
+same person but that is not required for desired state.
+
+The domain expert persona can produce a state structure that captures the
+state of the system.  The automation developer persona can take that state
+structure and build the change rules needed i.e. create, update, delete from
+it.
+
+You'll need an initial state file and an inventory to get started.
+
+**initial_state.yml**
 
 .. code-block:: yaml
 
-  hosts:
-  - name: host1
+    # the simplest state is an empty file
 
-desired_state.yml
+**inventory.yml**
+
+.. code-block:: yaml
+
+	all:
+	  hosts:
+		host1:
+
+
+Then define a full desired state would look like for your system.
+
+
+**desired_state.yml**
 
 .. code-block:: yaml
 
@@ -135,7 +174,15 @@ desired_state.yml
         address: 192.168.98.1
         mask: 255.255.255.0
 
-rules.yml
+Then we need to write change rules that will be used when
+changes are detected in the state.  You are free to make the
+rules as general or granular as needed. 
+
+These rules detect when a new host is added, removed, or changed and configures
+it accordingly.  You can provide tasks or roles for the five operations:
+create, retrieve, update, delete, and validate which can be abbreviated as CRUDV.
+
+**rules.yml**
 
 .. code-block:: yaml
 
@@ -153,7 +200,16 @@ rules.yml
     validate:
       tasks: validate_host.yml
 
-create_host.yml
+
+The tasks or roles needed for a CRUDV operation can be very simple because
+they only need to know how to do one thing.   Also the subtree of the state
+file is given to the task as `node` which eliminates all data manipulation
+and lookups that complicate Ansible playbooks.
+
+Here we configure the hostname of the host and IP address of all interfaces
+on that host.
+
+**create_host.yml**
 
 .. code-block:: yaml
 
@@ -163,9 +219,18 @@ create_host.yml
 	- hostname:
 		name: "{{inventory_hostname}}"
 
+
+One we have the state and change rules defined we can start the ansible state
+monitor process with an initial state, the rules, and inventory.
+
 .. code-block:: bash
 
     $ ansible-state monitor initial_state.yml rules.yml --inventory inventory.yml
+
+
+To make changes to the system we send the full desired state and the changes
+from the initial state will be calculated, updates to the system will be made,
+and validation will be run if any is provided.
 
 .. code-block:: bash
 
@@ -173,6 +238,94 @@ create_host.yml
 
 Creating your own Desired State Enabled Collection
 ``````````````````````````````````````````````````
+
+Once you have change rules that sufficiently automate the changes
+that might be made to your system, you can package up those rules
+and tasks or roles with a schema and create your own desired
+state collection.
+
+You'll need a schema that describes the state structure that your
+change rules expect.  This schema should be in JSON schema syntax
+using a YAML format.
+
+Schemas are used to check the structure of the inital state and updates to the
+desired state.  The can be as strict or lenient as allowed by the change rules.
+Stricter schemas will prevent errors while running the change rules.
+
+This example shows a simple schema for a state that expects a list (aka array)
+of hosts.
+
+**schema.yml**
+
+.. code-block:: yaml
+
+	---
+	type: object
+	properties:
+	  hosts:
+		type: array
+		items:
+		  $ref: '#/definitions/host'
+	definitions:
+	  host:
+		type: object
+	...
+
+
+Ansible desired state expects change rules, schemas, and tasks
+to be found in certain locations in the collection.  Rules should
+be placed in a `rules` directory.  Schemas should be placed in a
+`schemas` directory.  Tasks should be placed in a `tasks` directory.
+
+You can create a new collection using `ansible-galaxy`.
+
+
+.. code-block:: bash
+
+    $ ansible-galaxy collection init your_namespace.your_desired_state
+    $ cd your_namespace/your_desired_state/
+    $ mkdir rules schemas tasks
+
+Then copy the rules file into `rules`, the schema file into `schemas`, and
+the tasks into `tasks`.
+
+The rules file should change the location of the tasks to be a collection
+specifier of your_namespace.your_desired_state.TASK_NAME.  This will
+allow desired state to load the tasks from the collection instead of
+from the local directory.
+
+**rules/rules.yml**
+
+.. code-block:: yaml
+
+  rules:
+  - rule_selector: root.hosts.index
+    inventory_selector: node.name
+    create:
+      tasks: your_namespace.your_desired_state.create_host
+    update:
+      tasks: your_namespace.your_desired_state.update_host
+    delete:
+      tasks: your_namespace.your_desired_state.delete_host
+    retrieve:
+      tasks: your_namespace.your_desired_state.discover_host
+    validate:
+      tasks: your_namespace.your_desired_state.validate_host
+
+
+Then build your collection and publish it to ansible-galaxy.
+
+.. code-block:: bash
+
+    $ ansible-galaxy collection build
+    $ ansible-galaxy collection publish your_namespace-your_desired_state-1.0.0.tar.gz --token=...
+
+
+Then you can install your collection and use it as you would any other collection.
+
+.. code-block:: bash
+
+    $ ansible-galaxy collection install your_namespace.your_desired_state
 
 .. toctree::
    :maxdepth: 2
