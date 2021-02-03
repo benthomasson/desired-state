@@ -19,10 +19,9 @@ To load the shell for this environment run these commands:
 
     pipenv shell
 
-
 To install an example collection use this command:
 
-    ansible collection install benthomasson.expect
+    ansible-galaxy collection install benthomasson.expect
 
 To run the tests use this command after opening the shell:
 
