@@ -10,7 +10,7 @@ operations that will work for many configurations.
 
 # Getting Started
 
-This repository uses `pipenv` to manage the dependencies. To install
+This repository uses [pipenv](https://pypi.org/project/pipenv/) to manage the dependencies. To install
 the dependencies for a development environment run the following commands:
 
     pipenv install --dev
@@ -57,37 +57,4 @@ Collection support is defined in [collection.py](ansible_state/collection.py).
 Streaming telemetry is defined in [stream.py](ansible_state/stream.py).
 
 State schema validation is provided in [validate.py](ansible_state/validate.py).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
