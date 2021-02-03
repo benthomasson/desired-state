@@ -42,10 +42,8 @@ Message types between finite state machines are defined in [messages.py](ansible
 The reconciliation loop is defined as a finite state machine defined in
 [reconciliation_fsm.py](ansible_state/reconciliation_fsm.py)
 
-
 The main monitor process which contains the reconciliation loop is defined
 in [monitor.py](ansible_state/monitor.py)
-
 
 The diffing engine is defined in [diff.py](ansible_state/diff.py).
 
@@ -54,11 +52,11 @@ The generation of playbooks from change rules is defined in [rule.py](ansible_st
 A client/server implementation for injecting desired state into the monitor process is defined
 in the [client.py](ansible_state/client.py) and [server.py](ansible_state/server.py) files.
 
-
 Collection support is defined in [collection.py](ansible_state/collection.py).
 
 Streaming telemetry is defined in [stream.py](ansible_state/stream.py).
 
+State schema validation is provided in [validate.py](ansible_state/validate.py).
 
 
 
