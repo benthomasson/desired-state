@@ -28,6 +28,7 @@ pyzmq = "*"
 watchdog-gevent = "*"
 websocket-client = "*"
 jsonschema = "*"
+ansible = "==2.10"
 
 [requires]
 python_version = "3.8"
