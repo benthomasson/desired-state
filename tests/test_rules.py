@@ -131,12 +131,6 @@ def test_rules_delete():
 
 def test_rules_rename():
     '''
-    Rules based on position may be able to detect name changes easily since
-    the identifier is inside the data structure.  Reordering the data may
-    cause unintended name changes.
-
-    Possible solutions include:
-        sorting the elements in a list by identifier before detecting changes
     '''
 
     t1 = load_state('rename_item', 'A')
@@ -264,3 +258,41 @@ def test_reorder_list():
     actions = run_diff_get_actions(t1, t2, rules)
 
     assert len(actions) == 0
+
+
+def test_rules_rename_key():
+    '''
+    Changing a key in a subtree should cause a single update.
+    '''
+
+    t1 = load_state('rename_key', 'A')
+    t2 = load_state('rename_key', 'B')
+    rules = load_rule('routers_simple')
+
+    actions = run_diff_get_actions(t1, t2, rules)
+
+    print(pformat(actions))
+
+    assert len(actions) == 1
+    assert actions[0][0] == Action.UPDATE
+    assert actions[0][1] == {'interfaces': [{'ip_address': '1.1.1.1', 'name': 'eth1'}], 'label': 'R1'}
+
+
+def test_rules_rename_key2():
+    '''
+    Changing the root key of a subtree should cause a delete and a create operation.
+    '''
+
+    t1 = load_state('rename_key2', 'A')
+    t2 = load_state('rename_key2', 'B')
+    rules = load_rule('router_switch')
+
+    actions = run_diff_get_actions(t1, t2, rules)
+
+    print(pformat(actions))
+
+    assert len(actions) == 2
+    assert actions[0][0] == Action.CREATE
+    assert actions[0][1] == {'interfaces': [{'ip_address': '1.1.1.1', 'name': 'eth1'}], 'name': 'R1'}
+    assert actions[1][0] == Action.DELETE
+    assert actions[1][1] == {'interfaces': [{'ip_address': '1.1.1.1', 'name': 'eth1'}], 'name': 'R1'}
