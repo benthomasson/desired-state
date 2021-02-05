@@ -61,6 +61,7 @@ class PlaybookRunner:
 
         self.build_project_directory()
         self.copy_files()
+        self.build_project_subdirectories()
         self.write_settings()
         self.write_cmdline()
         self.write_passwords()
@@ -77,6 +78,8 @@ class PlaybookRunner:
         print(self.temp_dir)
         ensure_directory(os.path.join(self.temp_dir, 'env'))
         ensure_directory(os.path.join(self.temp_dir, 'project'))
+
+    def build_project_subdirectories(self):
         ensure_directory(os.path.join(self.temp_dir, 'project', 'roles'))
 
     def copy_files(self):
