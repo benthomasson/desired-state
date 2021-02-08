@@ -340,11 +340,14 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
                                   {'file': find_tasks(rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks'))},
                                   'name': 'include retrieve'})
 
-        print(play)
+            print(play)
 
-        plays.append(play)
-        destructured_vars_list.append(destructured_vars)
-        discovered_rules.append([discovery_id, changed_subtree_path, subtree])
+            plays.append(play)
+            destructured_vars_list.append(destructured_vars)
+            discovered_rules.append([discovery_id, changed_subtree_path, subtree])
+    
+    if not plays:
+        return new_discovered_state
 
     runner = PlaybookRunner(null_message_processor,
                             new_desired_state,
@@ -433,11 +436,11 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
                                   {'file': find_tasks(rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks'))},
                                   'name': 'include validation'})
 
-        print(play)
+            print(play)
 
-        plays.append(play)
-        destructured_vars_list.append(destructured_vars)
-        validated_rules.append([changed_subtree_path, subtree])
+            plays.append(play)
+            destructured_vars_list.append(destructured_vars)
+            validated_rules.append([changed_subtree_path, subtree])
 
     def runner_process_message(data):
         if data.get('event', '') == 'runner_on_ok':
@@ -450,6 +453,9 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
             event_data = data.get('event_data', {})
             for host in event_data.get('ok', {}).keys():
                 monitor.stream.put_message(ValidationResult(host, 'ok'))
+
+    if not plays:
+        return None
 
     runner = PlaybookRunner(runner_process_message,
                             current_state,
