@@ -227,10 +227,7 @@ def ansible_state_from_to(parsed_args):
     threads.append(worker.thread)
     worker.queue.put(DesiredState(0, 0, new_desired_state))
     worker.queue.put(Shutdown())
-    try:
-        gevent.joinall([worker.thread])
-    except gevent.exceptions.LoopExit:
-        pass
+    gevent.joinall([worker.thread])
     return 0
 
 

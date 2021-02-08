@@ -169,6 +169,10 @@ class _Waiting(State):
         controller.changeState(Discover2)
 
 
+    def onShutdown(self, controller, message_type, message):
+        controller.context.thread.kill()
+
+
 Waiting = _Waiting()
 
 
