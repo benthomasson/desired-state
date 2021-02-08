@@ -3,6 +3,7 @@
 """
 Usage:
     ansible-state [options] monitor <current-state.yml> [<rules.yml>]
+    ansible-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
     ansible-state [options] update-desired-state <new-state.yml>
     ansible-state [options] update-system-state <new-state.yml>
     ansible-state [options] validate <state.yml> <schema.yml>
@@ -20,7 +21,7 @@ Options:
 """
 
 from .stream import WebsocketChannel, NullChannel
-from .messages import DesiredState, SystemState
+from .messages import DesiredState, SystemState, Shutdown
 from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
@@ -28,6 +29,7 @@ from .monitor import AnsibleStateMonitor
 from .validate import get_errors, validate
 from .collection import split_collection_name, has_rules, has_schema, load_rules, load_schema
 import gevent_fsm.conf
+import gevent.exceptions
 from getpass import getpass
 from collections import defaultdict
 from docopt import docopt
@@ -53,6 +55,11 @@ logger = logging.getLogger('cli')
 
 
 def main(args=None):
+
+    '''
+    Main function for the CLI.
+    '''
+
     if args is None:
         args = sys.argv[1:]
     parsed_args = docopt(__doc__, args)
@@ -70,6 +77,8 @@ def main(args=None):
 
     if parsed_args['monitor']:
         return ansible_state_monitor(parsed_args)
+    elif parsed_args['from'] and parsed_args['to']:
+        return ansible_state_from_to(parsed_args)
     elif parsed_args['update-desired-state']:
         return ansible_state_update_desired_state(parsed_args)
     elif parsed_args['update-system-state']:
@@ -81,6 +90,10 @@ def main(args=None):
 
 
 def inventory(parsed_args, state):
+
+    '''
+    Loads an inventory
+    '''
 
     if state and 'inventory' in state and os.path.exists(state['inventory']):
         print('inventory:', state['inventory'])
@@ -95,9 +108,12 @@ def inventory(parsed_args, state):
             return f.read()
 
 
-def validate_state(new_state):
+def validate_state(state):
 
-    state = yaml.safe_load(new_state)
+    '''
+    Validates state using schema if it is found in the meta data of the state.
+    '''
+
     if 'schema' in state:
         if os.path.exists(state['schema']):
             with open(state['schema']) as f:
@@ -109,54 +125,66 @@ def validate_state(new_state):
         validate(state, schema)
 
 
-def ansible_state_monitor(parsed_args):
+def parse_options(parsed_args):
 
     secrets = defaultdict(str)
 
     if parsed_args['--ask-become-pass'] and not secrets['become']:
         secrets['become'] = getpass()
 
-    threads = []
-
     if parsed_args['--stream']:
         stream = WebsocketChannel(parsed_args['--stream'])
-        threads.append(stream.thread)
     else:
         stream = NullChannel()
 
     project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
 
-    with open(parsed_args['<current-state.yml>']) as f:
-        current_desired_state = yaml.safe_load(f.read())
+    return secrets, project_src, stream
 
-    if current_desired_state and 'schema' in current_desired_state:
-        if os.path.exists(current_desired_state['schema']):
-            with open(current_desired_state['schema']) as f:
-                schema = yaml.safe_load(f.read())
-        elif has_schema(*split_collection_name(current_desired_state['schema'])):
-            schema = load_schema(*split_collection_name(current_desired_state['schema']))
-        else:
-            schema = {}
-        validate(current_desired_state, schema)
+
+def load_rules_from_args_or_meta(parsed_args, state):
 
     if parsed_args['<rules.yml>']:
         if os.path.exists(parsed_args['<rules.yml>']):
             with open(parsed_args['<rules.yml>']) as f:
                 rules = yaml.safe_load(f.read())
-        elif has_rules(*split_collection_name(current_desired_state['rules'])):
-            rules = load_rules(*split_collection_name(current_desired_state['rules']))
+        elif has_rules(*split_collection_name(state['rules'])):
+            rules = load_rules(*split_collection_name(state['rules']))
         else:
             raise Exception('No rules file found')
-    elif current_desired_state and 'rules' in current_desired_state:
-        if os.path.exists(current_desired_state['rules']):
-            with open(current_desired_state['rules']) as f:
+    elif state and 'rules' in state:
+        if os.path.exists(state['rules']):
+            with open(state['rules']) as f:
                 rules = yaml.safe_load(f.read())
-        elif has_rules(*split_collection_name(current_desired_state['rules'])):
-            rules = load_rules(*split_collection_name(current_desired_state['rules']))
+        elif has_rules(*split_collection_name(state['rules'])):
+            rules = load_rules(*split_collection_name(state['rules']))
         else:
             raise Exception('No rules file found')
     else:
         raise Exception('No rules file found')
+
+    return rules
+
+
+def ansible_state_monitor(parsed_args):
+
+    '''
+    Starts the state monitoring green thread.
+    '''
+
+    secrets, project_src, stream = parse_options(parsed_args)
+
+    threads = []
+
+    if stream.thread:
+        threads.append(stream.thread)
+
+    with open(parsed_args['<current-state.yml>']) as f:
+        current_desired_state = yaml.safe_load(f.read())
+
+    validate_state(current_desired_state)
+
+    rules = load_rules_from_args_or_meta(parsed_args, current_desired_state)
 
     tracer = ConsoleTraceLog()
     worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args, current_desired_state), stream)
@@ -169,13 +197,54 @@ def ansible_state_monitor(parsed_args):
     return 0
 
 
+def ansible_state_from_to(parsed_args):
+
+    '''
+    Calculates the differene in state from initial-state to new-state executes those changes and exits.
+    '''
+
+    secrets, project_src, stream = parse_options(parsed_args)
+
+    threads = []
+
+    if stream.thread:
+        threads.append(stream.thread)
+
+    with open(parsed_args['<initial-state.yml>']) as f:
+        initial_desired_state = yaml.safe_load(f.read())
+
+    validate_state(initial_desired_state)
+
+    with open(parsed_args['<new-state.yml>']) as f:
+        new_desired_state = f.read()
+
+    validate_state(yaml.safe_load(new_desired_state))
+
+    rules = load_rules_from_args_or_meta(parsed_args, initial_desired_state)
+
+    tracer = ConsoleTraceLog()
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(parsed_args, initial_desired_state), stream)
+    threads.append(worker.thread)
+    worker.queue.put(DesiredState(0, 0, new_desired_state))
+    worker.queue.put(Shutdown())
+    try:
+        gevent.joinall([worker.thread])
+    except gevent.exceptions.LoopExit:
+        pass
+    return 0
+
+
 def ansible_state_update_desired_state(parsed_args):
+
+    '''
+    Sends a new desired state to the monitor green thread.
+    '''
 
     with open(parsed_args['<new-state.yml>']) as f:
         new_state = f.read()
         check_state(new_state)
 
-    validate_state(new_state)
+    validate_state(yaml.safe_load(new_state))
 
     client = ZMQClientChannel()
     client.send(DesiredState(0, 0, new_state))
@@ -184,11 +253,15 @@ def ansible_state_update_desired_state(parsed_args):
 
 def ansible_state_update_system_state(parsed_args):
 
+    '''
+    Sends a new system state to the monitor green thread.
+    '''
+
     with open(parsed_args['<new-state.yml>']) as f:
         new_state = f.read()
         check_state(new_state)
 
-    validate_state(new_state)
+    validate_state(yaml.safe_load(new_state))
 
     client = ZMQClientChannel()
     client.send(SystemState(0, 0, new_state))
@@ -196,6 +269,10 @@ def ansible_state_update_system_state(parsed_args):
 
 
 def ansible_state_validate(parsed_args):
+
+    '''
+    Validates a state using the schema and prints a list of errors in the state.
+    '''
 
     with open(parsed_args['<state.yml>']) as f:
         state = yaml.safe_load(f.read())

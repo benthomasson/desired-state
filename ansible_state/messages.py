@@ -25,6 +25,8 @@ Failure = namedtuple('Failure', [])
 Inventory = namedtuple('Inventory', ['inventory'])
 Rules = namedtuple('Rules', ['rules'])
 
+Shutdown = namedtuple('Shutdown', [])
+
 
 # Task = namedtuple('Task', ['id', 'client_id', 'task'])
 # Inventory = namedtuple('Inventory', ['id', 'inventory'])

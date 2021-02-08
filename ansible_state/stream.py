@@ -63,6 +63,8 @@ class WebsocketChannel(object):
 
 class NullChannel(object):
 
+    thread = None
+
     def put(self, message):
         pass
 
