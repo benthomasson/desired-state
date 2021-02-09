@@ -28,6 +28,7 @@ from .client import ZMQClientChannel
 from .monitor import AnsibleStateMonitor
 from .validate import get_errors, validate
 from .collection import split_collection_name, has_rules, has_schema, load_rules, load_schema
+from .types import get_meta
 import gevent_fsm.conf
 import gevent.exceptions
 from getpass import getpass
@@ -95,9 +96,11 @@ def inventory(parsed_args, state):
     Loads an inventory
     '''
 
-    if state and 'inventory' in state and os.path.exists(state['inventory']):
-        print('inventory:', state['inventory'])
-        with open(state['inventory']) as f:
+    meta = get_meta(state)
+
+    if meta.inventory and os.path.exists(meta.inventory):
+        print('inventory:', meta.inventory)
+        with open(meta.inventory) as f:
             return f.read()
     elif not parsed_args['--inventory']:
         print('inventory:', 'localhost only')
@@ -114,12 +117,14 @@ def validate_state(state):
     Validates state using schema if it is found in the meta data of the state.
     '''
 
-    if 'schema' in state:
-        if os.path.exists(state['schema']):
-            with open(state['schema']) as f:
+    meta = get_meta(state)
+
+    if meta.schema:
+        if os.path.exists(meta.schema):
+            with open(meta.schema) as f:
                 schema = yaml.safe_load(f.read())
-        elif has_schema(*split_collection_name(state['schema'])):
-            schema = load_schema(*split_collection_name(state['schema']))
+        elif has_schema(*split_collection_name(meta.schema)):
+            schema = load_schema(*split_collection_name(meta.schema))
         else:
             schema = {}
         validate(state, schema)
@@ -144,20 +149,22 @@ def parse_options(parsed_args):
 
 def load_rules_from_args_or_meta(parsed_args, state):
 
+    meta = get_meta(state)
+
     if parsed_args['<rules.yml>']:
         if os.path.exists(parsed_args['<rules.yml>']):
             with open(parsed_args['<rules.yml>']) as f:
                 rules = yaml.safe_load(f.read())
-        elif has_rules(*split_collection_name(state['rules'])):
-            rules = load_rules(*split_collection_name(state['rules']))
+        elif has_rules(*split_collection_name(parsed_args['<rules.yml>'])):
+            rules = load_rules(*split_collection_name(parsed_args['<rules.yml>']))
         else:
             raise Exception('No rules file found')
-    elif state and 'rules' in state:
-        if os.path.exists(state['rules']):
-            with open(state['rules']) as f:
+    elif meta.rules:
+        if os.path.exists(meta.rules):
+            with open(meta.rules) as f:
                 rules = yaml.safe_load(f.read())
-        elif has_rules(*split_collection_name(state['rules'])):
-            rules = load_rules(*split_collection_name(state['rules']))
+        elif has_rules(*split_collection_name(meta.rules)):
+            rules = load_rules(*split_collection_name(meta.rules))
         else:
             raise Exception('No rules file found')
     else:

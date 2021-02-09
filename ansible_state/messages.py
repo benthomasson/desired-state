@@ -28,6 +28,7 @@ Rules = namedtuple('Rules', ['rules'])
 Shutdown = namedtuple('Shutdown', [])
 
 
+
 # Task = namedtuple('Task', ['id', 'client_id', 'task'])
 # Inventory = namedtuple('Inventory', ['id', 'inventory'])
 # Cancel = namedtuple('Cancel', ['id', 'client_id'])
