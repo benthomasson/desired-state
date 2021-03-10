@@ -25,23 +25,10 @@ Failure = namedtuple('Failure', [])
 Inventory = namedtuple('Inventory', ['inventory'])
 Rules = namedtuple('Rules', ['rules'])
 
+Control = namedtuple('Control', ['id'])
+System = namedtuple('System', ['id', 'control_id'])
+Monitor = namedtuple('Monitor', ['id', 'system_id', 'control_id'])
+
 Shutdown = namedtuple('Shutdown', [])
-
-
-
-# Task = namedtuple('Task', ['id', 'client_id', 'task'])
-# Inventory = namedtuple('Inventory', ['id', 'inventory'])
-# Cancel = namedtuple('Cancel', ['id', 'client_id'])
-# TaskComplete = namedtuple('TaskComplete', ['id', 'client_id'])
-# PlaybookFinished = namedtuple('PlaybookFinished', ['id', 'client_id'])
-# Error = namedtuple('Error', ['id', 'client_id'])
-# RunnerStdout = namedtuple('RunnerStdout', ['id', 'client_id', 'data'])
-# RunnerMessage = namedtuple('RunnerMessage', ['id', 'client_id', 'data'])
-# RunnerCancelled = namedtuple('RunnerCancelled', ['id', 'client_id'])
-# ShutdownComplete = namedtuple('ShutdownComplete', ['id', 'client_id'])
-# ShutdownRequested = namedtuple('ShutdownRequested', [])
-
-# StatusMessage = namedtuple('StatusMessage', ['message'])
-# TaskCompletionMessage = namedtuple('TaskCompletionMessage', ['task_num'])
 
 msg_types = {x.__name__: x for x in [DesiredState, SystemState]}

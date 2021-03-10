@@ -2,6 +2,7 @@
 
 """
 Usage:
+    ansible-state [options] control
     ansible-state [options] monitor <current-state.yml> [<rules.yml>]
     ansible-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
     ansible-state [options] update-desired-state <new-state.yml>
@@ -18,6 +19,7 @@ Options:
     --inventory=<i>         Inventory to use
     --cwd=<c>               Change working directory on start
     --stream=<s>            Websocket channel to stream telemetry to
+    --control-plane=<s>     Websocket channel to connect to the control plane
 """
 
 from .stream import WebsocketChannel, NullChannel
@@ -76,7 +78,9 @@ def main(args=None):
     if parsed_args['--cwd']:
         os.chdir(parsed_args['--cwd'])
 
-    if parsed_args['monitor']:
+    if parsed_args['control']:
+        return ansible_state_control(parsed_args)
+    elif parsed_args['monitor']:
         return ansible_state_monitor(parsed_args)
     elif parsed_args['from'] and parsed_args['to']:
         return ansible_state_from_to(parsed_args)
@@ -171,6 +175,9 @@ def load_rules_from_args_or_meta(parsed_args, state):
         raise Exception('No rules file found')
 
     return rules
+
+def ansible_state_control(parsed_args):
+    pass
 
 
 def ansible_state_monitor(parsed_args):

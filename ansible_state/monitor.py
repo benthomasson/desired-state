@@ -12,12 +12,22 @@ from .messages import Inventory, Rules, DesiredState
 
 
 def convert_inventory(inventory):
+    '''
+        Converts an inventory from a YAML string to a data structure.
+    '''
     inventory = yaml.safe_load(inventory)
     return inventory
 
 
 
 class AnsibleStateMonitor(object):
+
+    '''
+    A monitor is a green thread FSM that monitors the lifecycle of one
+    desired state configuration defined by one schema.   The FSM is defined by
+    the reconciliation_fsm.py file.  The monitor receives state changes from
+    its `queue` and sends status messages out of its `stream`.
+    '''
 
     def __init__(self, tracer, fsm_id, secrets, project_src, rules, current_desired_state, inventory, stream):
         self.secrets = secrets
