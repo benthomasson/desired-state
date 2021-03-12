@@ -2,7 +2,7 @@
 
 """
 Usage:
-    ansible-state [options] control
+    ansible-state [options] control [<control-id>]
     ansible-state [options] monitor <current-state.yml> [<rules.yml>]
     ansible-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
     ansible-state [options] update-desired-state <new-state.yml>
@@ -28,6 +28,7 @@ from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
 from .monitor import AnsibleStateMonitor
+from .control import AnsibleStateControl
 from .validate import get_errors, validate
 from .collection import split_collection_name, has_rules, has_schema, load_rules, load_schema
 from .types import get_meta
@@ -40,6 +41,7 @@ import yaml
 import os
 import sys
 import logging
+from uuid import uuid4
 import gevent
 from gevent import monkey
 monkey.patch_all()
@@ -176,8 +178,25 @@ def load_rules_from_args_or_meta(parsed_args, state):
 
     return rules
 
+
 def ansible_state_control(parsed_args):
-    pass
+    secrets, _, stream = parse_options(parsed_args)
+    control_id = parsed_args['<control-id>'] or str(uuid4())
+
+    threads = []
+
+    if stream.thread:
+        threads.append(stream.thread)
+
+    tracer = ConsoleTraceLog()
+    control = AnsibleStateControl(tracer, 0, control_id, secrets, stream)
+    threads.append(control.thread)
+
+    server = ZMQServerChannel(control.queue, tracer)
+    threads.append(server.zmq_thread)
+    threads.append(server.controller_thread)
+    control.controller.outboxes['output'] = server.queue
+    gevent.joinall(threads)
 
 
 def ansible_state_monitor(parsed_args):

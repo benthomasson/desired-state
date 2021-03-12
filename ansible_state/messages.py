@@ -29,7 +29,7 @@ Control = namedtuple('Control', ['id'])
 System = namedtuple('System', ['id', 'control_id'])
 Monitor = namedtuple('Monitor', ['id', 'system_id', 'control_id'])
 
-DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
+DesiredSystemState = namedtuple('DesiredSystemState', ['id', 'client_id', 'desired_state'])
 
 Shutdown = namedtuple('Shutdown', [])
 
