@@ -18,7 +18,7 @@ class _Validate1(State):
 
         monitor = controller.context
 
-        monitor.operational_system_state = ansible_state_validation(monitor,
+        monitor.operational_actual_state = ansible_state_validation(monitor,
                                                                     monitor.secrets,
                                                                     monitor.project_src,
                                                                     monitor.new_desired_state,
@@ -42,7 +42,7 @@ class _Discover1(State):
 
         monitor = controller.context
 
-        monitor.discovered_system_state = ansible_state_discovery(monitor.secrets,
+        monitor.discovered_actual_state = ansible_state_discovery(monitor.secrets,
                                                                   monitor.project_src,
                                                                   monitor.current_desired_state,
                                                                   monitor.new_desired_state,
@@ -102,7 +102,7 @@ class _Reconcile2(State):
 
         result = ansible_state_diff(monitor.secrets,
                                     monitor.project_src,
-                                    monitor.discovered_system_state,
+                                    monitor.discovered_actual_state,
                                     monitor.new_desired_state,
                                     monitor.rules,
                                     monitor.inventory,
@@ -128,7 +128,7 @@ class _Reconcile3(State):
 
         result = ansible_state_diff(monitor.secrets,
                                     monitor.project_src,
-                                    monitor.discovered_system_state,
+                                    monitor.discovered_actual_state,
                                     monitor.current_desired_state,
                                     monitor.rules,
                                     monitor.inventory,
@@ -159,9 +159,9 @@ class _Waiting(State):
         controller.changeState(Diff1)
 
     @transitions('Diff1')
-    def onSystemState(self, controller, message_type, message):
-        print('Waiting.onSystemState')
-        controller.context.discovered_system_state = yaml.safe_load(message.system_state)
+    def onActualState(self, controller, message_type, message):
+        print('Waiting.onActualState')
+        controller.context.discovered_actual_state = yaml.safe_load(message.actual_state)
         controller.changeState(Diff3)
 
     @transitions('Discover2')
@@ -220,7 +220,7 @@ class _Diff3(State):
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff3'))
-        controller.context.diff = DeepDiff(controller.context.discovered_system_state, controller.context.current_desired_state, ignore_order=True)
+        controller.context.diff = DeepDiff(controller.context.discovered_actual_state, controller.context.current_desired_state, ignore_order=True)
         print(controller.context.diff)
 
         if controller.context.diff:
@@ -240,7 +240,7 @@ class _Discover2(State):
 
         # Trivial discovery
         # Assume the state is the same as current desired state
-        controller.context.discovered_system_state = controller.context.current_desired_state
+        controller.context.discovered_actual_state = controller.context.current_desired_state
         controller.changeState(Diff3)
 
 
@@ -264,7 +264,7 @@ class _Diff2(State):
     @transitions('Validate1')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff2'))
-        controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_system_state, ignore_order=True)
+        controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_actual_state, ignore_order=True)
         print(controller.context.diff)
         controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
 

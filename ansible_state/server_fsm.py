@@ -24,8 +24,8 @@ class _Ready(State):
         print('onDesiredState')
         controller.context.outbox.put(message)
 
-    def onSystemState(self, controller, message_type, message):
-        print('onSystemState')
+    def onActualState(self, controller, message_type, message):
+        print('onActualState')
         controller.context.outbox.put(message)
 
 Ready = _Ready()

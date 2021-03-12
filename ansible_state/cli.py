@@ -6,7 +6,7 @@ Usage:
     ansible-state [options] monitor <current-state.yml> [<rules.yml>]
     ansible-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
     ansible-state [options] update-desired-state <new-state.yml>
-    ansible-state [options] update-system-state <new-state.yml>
+    ansible-state [options] update-actual-state <new-state.yml>
     ansible-state [options] validate <state.yml> <schema.yml>
 
 Options:
@@ -23,7 +23,7 @@ Options:
 """
 
 from .stream import WebsocketChannel, NullChannel
-from .messages import DesiredState, SystemState, Shutdown
+from .messages import DesiredState, ActualState, Shutdown
 from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
@@ -86,8 +86,8 @@ def main(args=None):
         return ansible_state_from_to(parsed_args)
     elif parsed_args['update-desired-state']:
         return ansible_state_update_desired_state(parsed_args)
-    elif parsed_args['update-system-state']:
-        return ansible_state_update_system_state(parsed_args)
+    elif parsed_args['update-actual-state']:
+        return ansible_state_update_actual_state(parsed_args)
     elif parsed_args['validate']:
         return ansible_state_validate(parsed_args)
     else:
@@ -262,10 +262,10 @@ def ansible_state_update_desired_state(parsed_args):
     return 0
 
 
-def ansible_state_update_system_state(parsed_args):
+def ansible_state_update_actual_state(parsed_args):
 
     '''
-    Sends a new system state to the monitor green thread.
+    Sends a new actual state to the monitor green thread.
     '''
 
     with open(parsed_args['<new-state.yml>']) as f:
@@ -275,7 +275,7 @@ def ansible_state_update_system_state(parsed_args):
     validate_state(yaml.safe_load(new_state))
 
     client = ZMQClientChannel()
-    client.send(SystemState(0, 0, new_state))
+    client.send(ActualState(0, 0, new_state))
     return 0
 
 
