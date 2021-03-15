@@ -21,14 +21,15 @@ class AnsibleStateControl(object):
     working application.
     '''
 
-    def __init__(self, tracer, fsm_id, control_id, secrets, stream):
+    def __init__(self, tracer, fsm_id, control_id, secrets, stream, control_plane):
         self.control_id = control_id
         self.secrets = secrets
         self.tracer = tracer
         self.stream = stream
+        self.control_plane = control_plane
         self.buffered_messages = Queue()
         self.controller = FSMController(self, "control_fsm", fsm_id, control_fsm.Start, self.tracer, self.tracer)
         self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
-        self.stream.put_message(Control(self.control_id))
+        self.control_plane.put_message(Control(self.control_id))
         self.thread = gevent.spawn(self.controller.receive_messages)

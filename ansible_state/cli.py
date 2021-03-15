@@ -183,13 +183,20 @@ def ansible_state_control(parsed_args):
     secrets, _, stream = parse_options(parsed_args)
     control_id = parsed_args['<control-id>'] or str(uuid4())
 
+    if parsed_args['--control-plane']:
+        control_plane = WebsocketChannel(parsed_args['--control-plane'])
+    else:
+        control_plane = NullChannel()
+
+
     threads = []
 
     if stream.thread:
         threads.append(stream.thread)
 
     tracer = ConsoleTraceLog()
-    control = AnsibleStateControl(tracer, 0, control_id, secrets, stream)
+    control = AnsibleStateControl(tracer, 0, control_id, secrets, stream, control_plane)
+    control_plane.outbox = control.queue
     threads.append(control.thread)
 
     server = ZMQServerChannel(control.queue, tracer)

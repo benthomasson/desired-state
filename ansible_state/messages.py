@@ -1,10 +1,27 @@
 
 from collections import namedtuple
 import yaml
+import json
 
 
 def serialize(message):
     return [message.__class__.__name__.encode(), yaml.dump(dict(message._asdict())).encode()]
+
+def json_serialize(message):
+    return json.dumps([message.__class__.__name__, dict(message._asdict())]).encode()
+
+def json_deserialize(message):
+    data = json.loads(message)
+    if isinstance(data, list):
+        msg_type = data[0]
+        msg_data = data[1]
+        if msg_type in msg_types:
+            try:
+                return msg_types[msg_type](**msg_data)
+            except BaseException as e:
+                print(e)
+                raise
+    return None
 
 
 Hello = namedtuple('Hello', [])
@@ -33,4 +50,13 @@ DesiredSystemState = namedtuple('DesiredSystemState', ['id', 'client_id', 'desir
 
 Shutdown = namedtuple('Shutdown', [])
 
-msg_types = {x.__name__: x for x in [DesiredState, ActualState]}
+ServiceInstance = namedtuple('ServiceInstance', ['id',
+                                                 'service_id',
+                                                 'created_at',
+                                                 'deleted_at',
+                                                 'name',
+                                                 'config',
+                                                 'inventory',
+                                                 'inventory_id'])
+
+msg_types = {x.__name__: x for x in [DesiredState, ActualState, Hello, Control, ServiceInstance]}

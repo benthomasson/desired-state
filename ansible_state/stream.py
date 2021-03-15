@@ -5,7 +5,7 @@ import ssl
 import json
 from pprint import pprint
 
-from .messages import Hello
+from .messages import Hello, json_serialize, json_deserialize
 
 
 class WebsocketChannel(object):
@@ -16,6 +16,7 @@ class WebsocketChannel(object):
         self.start_socket_thread()
         self.startup_messages = []
         self.opened = False
+        self.outbox = None
 
     def start_socket_thread(self):
         self.socket = websocket.WebSocketApp(self.address,
@@ -25,11 +26,9 @@ class WebsocketChannel(object):
                                              on_open=self.on_open)
         self.thread = gevent.spawn(self.socket.run_forever, sslopt={"cert_reqs": ssl.CERT_NONE})
 
-    def serialize(self, message):
-        return json.dumps([message.__class__.__name__, dict(message._asdict())]).encode()
 
     def put_message(self, message):
-        self.put(self.serialize(message))
+        self.put(json_serialize(message))
 
     def put(self, message):
         pprint(message)
@@ -46,10 +45,13 @@ class WebsocketChannel(object):
             self.put(message)
         self.startup_messages = []
 
-    def on_message(self, *args, **kwargs):
+    def on_message(self, message):
         print('on_message')
-        pprint(args)
-        pprint(kwargs)
+        if self.outbox:
+            msg = json_deserialize(message)
+            if not msg:
+                print("Unknown message:", message)
+            self.outbox.put(msg)
 
     def on_close(self, ws=None):
         print('on_close')
@@ -64,6 +66,7 @@ class WebsocketChannel(object):
 class NullChannel(object):
 
     thread = None
+    outbox = None
 
     def put(self, message):
         pass
