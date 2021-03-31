@@ -9,5 +9,7 @@
 - Target state parser
 - Parser-to-state-descriptor translator
 - Resolution loop
+- Run from initial empty state option
+- Run initial discovery option
 
 

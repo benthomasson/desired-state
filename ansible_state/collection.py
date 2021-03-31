@@ -72,3 +72,14 @@ def load_tasks(collection, tasks):
     if not os.path.exists(location):
         raise Exception(f'Cannot find tasks {tasks} in {collection} at {location}')
     return location
+
+
+def has_service(collection, service):
+    return os.path.exists(os.path.join(find_collection(collection), 'services', service) + ".yml")
+
+
+def load_service(collection, service):
+    location = os.path.join(find_collection(collection), 'services', service) + ".yml"
+    if not os.path.exists(location):
+        raise Exception(f'Cannot find service {service} in {collection} at {location}')
+    return location

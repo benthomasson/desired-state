@@ -20,8 +20,10 @@ class _Ready(State):
         if not controller.context.buffered_messages.empty():
             controller.context.queue.put(controller.context.buffered_messages.get())
 
-    def onDesiredSystemState(self, controller, message_type, message):
-        pass
+    def onServiceInstance(self, controller, message_type, message):
+        print(message)
+        controller.context.start_monitor(message)
+
 
 
 Ready = _Ready()
