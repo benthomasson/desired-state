@@ -78,4 +78,5 @@ def build_rule_selector(dotted_selector):
 
     return "".join(selector)
 
+
 build_inventory_selector = build_rule_selector

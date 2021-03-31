@@ -2,7 +2,6 @@
 
 import gevent
 import yaml
-import json
 from gevent.queue import Queue
 from gevent_fsm.fsm import FSMController, Channel
 
@@ -17,7 +16,6 @@ def convert_inventory(inventory):
     '''
     inventory = yaml.safe_load(inventory)
     return inventory
-
 
 
 class AnsibleStateMonitor(object):
@@ -42,8 +40,10 @@ class AnsibleStateMonitor(object):
         self.tracer = tracer
         self.stream = stream
         self.buffered_messages = Queue()
-        self.controller = FSMController(self, "reconciliation_fsm", fsm_id, reconciliation_fsm.Start, self.tracer, self.tracer)
-        self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
+        self.controller = FSMController(
+            self, "reconciliation_fsm", fsm_id, reconciliation_fsm.Start, self.tracer, self.tracer)
+        self.controller.outboxes['default'] = Channel(
+            self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
         self.stream.put_message(Inventory(convert_inventory(inventory)))
         self.stream.put_message(Rules(rules))

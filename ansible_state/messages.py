@@ -7,8 +7,10 @@ import json
 def serialize(message):
     return [message.__class__.__name__.encode(), yaml.dump(dict(message._asdict())).encode()]
 
+
 def json_serialize(message):
     return json.dumps([message.__class__.__name__, dict(message._asdict())]).encode()
+
 
 def json_deserialize(message):
     data = json.loads(message)
@@ -28,7 +30,8 @@ Hello = namedtuple('Hello', [])
 FSMState = namedtuple('FSMState', ['state'])
 Diff = namedtuple('Diff', ['diff'])
 ValidationResult = namedtuple('ValidationResult', ['host', 'result'])
-ValidationTask = namedtuple('ValidationTask', ['host', 'task_action', 'result'])
+ValidationTask = namedtuple(
+    'ValidationTask', ['host', 'task_action', 'result'])
 
 DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
 ActualState = namedtuple('ActualState', ['id', 'client_id', 'actual_state'])
@@ -46,7 +49,8 @@ Control = namedtuple('Control', ['id'])
 System = namedtuple('System', ['id', 'control_id'])
 Monitor = namedtuple('Monitor', ['id', 'system_id', 'control_id'])
 
-DesiredSystemState = namedtuple('DesiredSystemState', ['id', 'client_id', 'desired_state'])
+DesiredSystemState = namedtuple(
+    'DesiredSystemState', ['id', 'client_id', 'desired_state'])
 
 Shutdown = namedtuple('Shutdown', [])
 
@@ -63,4 +67,5 @@ ServiceInstance = namedtuple('ServiceInstance', ['id',
                                                  'schema_name',
                                                  'rules_name'])
 
-msg_types = {x.__name__: x for x in [DesiredState, ActualState, Hello, Control, ServiceInstance]}
+msg_types = {x.__name__: x for x in [
+    DesiredState, ActualState, Hello, Control, ServiceInstance]}

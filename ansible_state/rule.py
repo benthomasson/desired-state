@@ -28,7 +28,8 @@ ACTION_RULES = {Action.CREATE: 'create',
 def select_rules_recursive(diff, rules, current_desired_state, new_desired_state):
 
     matching_rules = []
-    matchers = [(make_matcher(build_rule_selector(rule['rule_selector'])), rule) for rule in rules]
+    matchers = [(make_matcher(build_rule_selector(
+        rule['rule_selector'])), rule) for rule in rules]
 
     for key, value in diff.get('values_changed', {}).items():
         for (matcher, rule) in matchers:
@@ -40,29 +41,34 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('dictionary_item_added', rule, match, None))
+                matching_rules.append(
+                    ('dictionary_item_added', rule, match, None))
             new_subtree = extract(new_desired_state, item)
-            select_rules_recursive_helper(diff, matchers, matching_rules, item, new_subtree)
+            select_rules_recursive_helper(
+                diff, matchers, matching_rules, item, new_subtree)
 
     for item in diff.get('dictionary_item_removed', []):
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('dictionary_item_removed', rule, match, None))
+                matching_rules.append(
+                    ('dictionary_item_removed', rule, match, None))
 
     for item in diff.get('iterable_item_added', []):
         print(item)
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('iterable_item_added', rule, match, None))
+                matching_rules.append(
+                    ('iterable_item_added', rule, match, None))
 
     for item in diff.get('iterable_item_removed', []):
         print(item)
         for (matcher, rule) in matchers:
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('iterable_item_removed', rule, match, None))
+                matching_rules.append(
+                    ('iterable_item_removed', rule, match, None))
 
     for key, value in diff.get('type_changes', {}).items():
         # Handles case in YAML where an empty list defaults to None type
@@ -86,8 +92,10 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
                 for (matcher, rule) in matchers:
                     match = re.match(matcher, new_key)
                     if match:
-                        matching_rules.append(('type_changes', rule, match, None))
-            select_rules_recursive_helper(diff, matchers, matching_rules, key, value.get('new_value'))
+                        matching_rules.append(
+                            ('type_changes', rule, match, None))
+            select_rules_recursive_helper(
+                diff, matchers, matching_rules, key, value.get('new_value'))
 
         # Handles case in YAML where an empty dict defaults to None type on the new state
         if value.get('old_type') == dict and value.get('new_type') == type(None):
@@ -97,8 +105,10 @@ def select_rules_recursive(diff, rules, current_desired_state, new_desired_state
                 for (matcher, rule) in matchers:
                     match = re.match(matcher, old_key)
                     if match:
-                        matching_rules.append(('type_changes', rule, match, None))
-            select_rules_recursive_helper(diff, matchers, matching_rules, key, value.get('old_value'))
+                        matching_rules.append(
+                            ('type_changes', rule, match, None))
+            select_rules_recursive_helper(
+                diff, matchers, matching_rules, key, value.get('old_value'))
 
     return matching_rules
 
@@ -112,11 +122,13 @@ def select_rules_recursive_helper(diff, matchers, matching_rules, path, value):
 
     if type(value) is list:
         for i, item in enumerate(value):
-            select_rules_recursive_helper(diff, matchers, matching_rules, f"{path}[{i}]", item)
+            select_rules_recursive_helper(
+                diff, matchers, matching_rules, f"{path}[{i}]", item)
 
     if type(value) is dict:
         for k, v in value.items():
-            select_rules_recursive_helper(diff, matchers, matching_rules, f"{path}['{k}']", v)
+            select_rules_recursive_helper(
+                diff, matchers, matching_rules, f"{path}['{k}']", v)
 
 
 def select_rules(diff, rules):
@@ -130,19 +142,23 @@ def select_rules(diff, rules):
         for item in diff.get('dictionary_item_added', []):
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('dictionary_item_added', rule, match, None))
+                matching_rules.append(
+                    ('dictionary_item_added', rule, match, None))
         for item in diff.get('dictionary_item_removed', []):
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('dictionary_item_removed', rule, match, None))
+                matching_rules.append(
+                    ('dictionary_item_removed', rule, match, None))
         for item in diff.get('iterable_item_added', []):
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('iterable_item_added', rule, match, None))
+                matching_rules.append(
+                    ('iterable_item_added', rule, match, None))
         for item in diff.get('iterable_item_removed', []):
             match = re.match(matcher, item)
             if match:
-                matching_rules.append(('iterable_item_removed', rule, match, None))
+                matching_rules.append(
+                    ('iterable_item_removed', rule, match, None))
         for key, value in diff.get('type_changes', {}).items():
             # Handles case in YAML where an empty list defaults to None type
             if value.get('old_type') == type(None) and value.get('new_type') == list:
@@ -163,7 +179,8 @@ def select_rules(diff, rules):
                     new_key = f"{key}['{dict_key}']"
                     match = re.match(matcher, new_key)
                     if match:
-                        matching_rules.append(('type_changes', rule, match, None))
+                        matching_rules.append(
+                            ('type_changes', rule, match, None))
 
     return matching_rules
 

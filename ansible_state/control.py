@@ -33,15 +33,18 @@ class AnsibleStateControl(object):
         self.stream = stream
         self.control_plane = control_plane
         self.buffered_messages = Queue()
-        self.controller = FSMController(self, "control_fsm", fsm_id, control_fsm.Start, self.tracer, self.tracer)
-        self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
+        self.controller = FSMController(
+            self, "control_fsm", fsm_id, control_fsm.Start, self.tracer, self.tracer)
+        self.controller.outboxes['default'] = Channel(
+            self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
         self.control_plane.put_message(Control(self.control_id))
         self.thread = gevent.spawn(self.controller.receive_messages)
 
     def start_monitor(self, service_instance):
         # Get rules
-        schema = load_schema(*split_collection_name(service_instance.schema_name))
+        schema = load_schema(
+            *split_collection_name(service_instance.schema_name))
         rules = load_rules(*split_collection_name(service_instance.rules_name))
         inventory = service_instance.inventory
         validate(service_instance.config, schema)
@@ -56,9 +59,11 @@ class AnsibleStateControl(object):
         self.service_instances[service_instance.id] = service_instance
 
     def update_monitor(self, service_instance):
-        schema = load_schema(*split_collection_name(service_instance.schema_name))
+        schema = load_schema(
+            *split_collection_name(service_instance.schema_name))
         validate(service_instance.config, schema)
-        self.worker[service_instance.id].queue.put(DesiredState(0, 0, service_instance.config))
+        self.worker[service_instance.id].queue.put(
+            DesiredState(0, 0, service_instance.config))
 
     def start_or_update_monitor(self, service_instance):
         if service_instance.id in self.workers:

@@ -27,9 +27,11 @@ def convert_diff(diff):
 
     print(diff)
     if 'dictionary_item_added' in diff:
-        diff['dictionary_item_added'] = [str(x) for x in diff['dictionary_item_added']]
+        diff['dictionary_item_added'] = [
+            str(x) for x in diff['dictionary_item_added']]
     if 'dictionary_item_removed' in diff:
-        diff['dictionary_item_removed'] = [str(x) for x in diff['dictionary_item_removed']]
+        diff['dictionary_item_removed'] = [
+            str(x) for x in diff['dictionary_item_removed']]
     if 'type_changes' in diff:
         diff['type_changes'] = [str(x) for x in diff['type_changes']]
     diff = dict(diff)
@@ -104,24 +106,29 @@ class PlaybookRunner:
 
     def write_passwords(self):
         with open(os.path.join(self.temp_dir, 'env', 'passwords'), 'w') as f:
-            f.write("""---\n"SUDO password:": "{0}"\nBECOME password: "{0}"\n...""".format(self.secrets['become']))
+            f.write(
+                """---\n"SUDO password:": "{0}"\nBECOME password: "{0}"\n...""".format(self.secrets['become']))
 
     def write_playbook(self):
-        self.playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
+        self.playbook_file = (os.path.join(
+            self.temp_dir, 'project', 'playbook.yml'))
         playbook = self.playbook
         with open(self.playbook_file, 'w') as f:
             f.write(yaml.safe_dump(playbook, default_flow_style=False))
 
     def write_state_vars(self):
-        state_vars_file = os.path.join(self.temp_dir, 'project', 'state_vars.yml')
+        state_vars_file = os.path.join(
+            self.temp_dir, 'project', 'state_vars.yml')
         with open(state_vars_file, 'w') as f:
-            f.write(yaml.safe_dump(self.new_desired_state, default_flow_style=False))
+            f.write(yaml.safe_dump(
+                self.new_desired_state, default_flow_style=False))
         for play in self.playbook:
             play['tasks'].insert(0, {'include_vars': {'file': 'state_vars.yml', 'name': 'state'},
                                      'name': 'include state_vars'})
 
     def write_diff_vars(self):
-        diff_vars_file = os.path.join(self.temp_dir, 'project', 'diff_vars.yml')
+        diff_vars_file = os.path.join(
+            self.temp_dir, 'project', 'diff_vars.yml')
         with open(diff_vars_file, 'w') as f:
             f.write(yaml.safe_dump(self.state_diff, default_flow_style=False))
         for play in self.playbook:
@@ -130,9 +137,11 @@ class PlaybookRunner:
 
     def write_destructred_vars(self):
         for i, destructured_vars in enumerate(self.destructured_vars_list):
-            diff_vars_file = os.path.join(self.temp_dir, 'project', f'destructured_vars_{i}.yml')
+            diff_vars_file = os.path.join(
+                self.temp_dir, 'project', f'destructured_vars_{i}.yml')
             with open(diff_vars_file, 'w') as f:
-                f.write(yaml.safe_dump(destructured_vars, default_flow_style=False))
+                f.write(yaml.safe_dump(
+                    destructured_vars, default_flow_style=False))
         for i, play in enumerate(self.playbook):
             play['tasks'].insert(0, {'include_vars': {'file': f'destructured_vars_{i}.yml'},
                                      'name': 'include destructured_vars'})
@@ -170,7 +179,8 @@ class PlaybookRunner:
         print(data.get('stdout', ''))
 
     def read_result(self):
-        artifacts = glob.glob(os.path.join(self.temp_dir, 'artifacts', '*-*-*-*-*'))
+        artifacts = glob.glob(os.path.join(
+            self.temp_dir, 'artifacts', '*-*-*-*-*'))
         if len(artifacts) != 1:
             # We cannot determine the result if there is 0 or more than 1 artifact directories
             return None
@@ -205,12 +215,14 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
     # Find the difference between states
 
-    diff = DeepDiff(current_desired_state, new_desired_state, ignore_order=True)
+    diff = DeepDiff(current_desired_state,
+                    new_desired_state, ignore_order=True)
     print(diff)
 
     # Find matching rules
 
-    matching_rules = select_rules_recursive(diff, rules['rules'], current_desired_state, new_desired_state)
+    matching_rules = select_rules_recursive(
+        diff, rules['rules'], current_desired_state, new_desired_state)
     if explain:
         print('matching_rules')
         pprint(matching_rules)
@@ -253,12 +265,14 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
         # Determine the inventory to run on
 
-        inventory_selector = build_inventory_selector(rule.get('inventory_selector'))
+        inventory_selector = build_inventory_selector(
+            rule.get('inventory_selector'))
         if inventory_selector:
             try:
                 inventory_name = extract(subtree, inventory_selector)
             except KeyError:
-                raise Exception(f'Invalid inventory_selector {inventory_selector}')
+                raise Exception(
+                    f'Invalid inventory_selector {inventory_selector}')
 
         print('inventory_name', inventory_name)
 
@@ -271,7 +285,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
 
         if 'tasks' in rule.get(ACTION_RULES[action], {}):
             play['tasks'].append({'include_tasks':
-                                  {'file': find_tasks(rule.get(ACTION_RULES[action]).get('tasks'))},
+                                  {'file': find_tasks(
+                                      rule.get(ACTION_RULES[action]).get('tasks'))},
                                   'name': "{0} {1}".format(ACTION_RULES[action], changed_subtree_path)})
 
         if 'become' in rule:
@@ -286,7 +301,8 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
             plays.append(play)
             destructured_vars_list.append(destructured_vars)
 
-            ran_rules.append((rule, changed_subtree_path, subtree, inventory_name))
+            ran_rules.append(
+                (rule, changed_subtree_path, subtree, inventory_name))
 
     PlaybookRunner(null_message_processor,
                    new_desired_state,
@@ -304,7 +320,8 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
     # Discovers the state of a subset of a system
 
-    diff = DeepDiff(current_desired_state, new_desired_state, ignore_order=True)
+    diff = DeepDiff(current_desired_state,
+                    new_desired_state, ignore_order=True)
 
     # deep copy
     new_discovered_state = yaml.safe_load(yaml.safe_dump(new_desired_state))
@@ -337,15 +354,17 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
 
         if 'tasks' in rule.get(ACTION_RULES[Action.RETRIEVE], {}):
             play['tasks'].append({'include_tasks':
-                                  {'file': find_tasks(rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks'))},
+                                  {'file': find_tasks(
+                                      rule.get(ACTION_RULES[Action.RETRIEVE]).get('tasks'))},
                                   'name': 'include retrieve'})
 
             print(play)
 
             plays.append(play)
             destructured_vars_list.append(destructured_vars)
-            discovered_rules.append([discovery_id, changed_subtree_path, subtree])
-    
+            discovered_rules.append(
+                [discovery_id, changed_subtree_path, subtree])
+
     if not plays:
         return new_discovered_state
 
@@ -362,14 +381,16 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
     if result:
 
         for discovery_id, changed_subtree_path, subtree in discovered_rules:
-            update_discovered_state(new_discovered_state, runner.temp_dir, discovery_id, changed_subtree_path, subtree)
+            update_discovered_state(
+                new_discovered_state, runner.temp_dir, discovery_id, changed_subtree_path, subtree)
 
     return new_discovered_state
 
 
 def update_discovered_state(new_discovered_state, temp_dir, discovery_id, changed_subtree_path, subtree):
 
-    discovered_state_file = os.path.join(temp_dir, 'project', f'discovered_state_{discovery_id}.yml')
+    discovered_state_file = os.path.join(
+        temp_dir, 'project', f'discovered_state_{discovery_id}.yml')
     if os.path.exists(discovered_state_file):
         with open(discovered_state_file) as f:
             discovered_subtree_state = yaml.safe_load(f.read())
@@ -382,14 +403,16 @@ def update_discovered_state(new_discovered_state, temp_dir, discovery_id, change
         if match_list:
             parent_path = match_list.groups()[0]
             index = int(match_list.groups()[1])
-            extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+            extract(new_discovered_state, parent_path)[
+                index] = discovered_subtree_state
 
         # Dict case
         match_dict = re.match(r"(.*)\['(\S+)'\]$", changed_subtree_path)
         if match_dict and not match_list:
             parent_path = match_dict.groups()[0]
             index = match_dict.groups()[1]
-            extract(new_discovered_state, parent_path)[index] = discovered_subtree_state
+            extract(new_discovered_state, parent_path)[
+                index] = discovered_subtree_state
 
         if not match_dict and not match_list:
             assert False, f"type of changed_subtree_path not supported {changed_subtree_path}"
@@ -433,7 +456,8 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
 
         if 'tasks' in rule.get(ACTION_RULES[Action.VALIDATE], {}):
             play['tasks'].append({'include_tasks':
-                                  {'file': find_tasks(rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks'))},
+                                  {'file': find_tasks(
+                                      rule.get(ACTION_RULES[Action.VALIDATE]).get('tasks'))},
                                   'name': 'include validation'})
 
             print(play)
@@ -447,7 +471,8 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
             event_data = data.get('event_data', {})
             if event_data.get('task_action', '') not in ['include_tasks', 'include_vars']:
                 monitor.stream.put_message(ValidationTask(event_data.get('host'),
-                                                          event_data.get('task_action', ''),
+                                                          event_data.get(
+                                                              'task_action', ''),
                                                           'ok'))
         if data.get('event', '') == 'playbook_on_stats':
             event_data = data.get('event_data', {})

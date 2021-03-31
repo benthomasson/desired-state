@@ -13,7 +13,8 @@ def find_collection(name):
     if ANSIBLE_GALAXY is None:
         raise Exception('ansible-galaxy is not installed')
     try:
-        output = subprocess.check_output([ANSIBLE_GALAXY, 'collection', 'list', name], stderr=subprocess.STDOUT)
+        output = subprocess.check_output(
+            [ANSIBLE_GALAXY, 'collection', 'list', name], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
         return None
     output = output.decode()
@@ -36,9 +37,11 @@ def has_schema(collection, schema):
 def load_schema(collection, schema):
     if find_collection(collection) is None:
         return False
-    location = os.path.join(find_collection(collection), 'schemas', schema) + ".yml"
+    location = os.path.join(find_collection(
+        collection), 'schemas', schema) + ".yml"
     if not os.path.exists(location):
-        raise Exception(f'Cannot find schema {schema} in {collection} at {location}')
+        raise Exception(
+            f'Cannot find schema {schema} in {collection} at {location}')
     with open(location) as f:
         print(f'Loading schema from {location}')
         return yaml.safe_load(f.read())
@@ -49,15 +52,16 @@ def split_collection_name(collection_resource):
     return collection, resource
 
 
-
 def has_rules(collection, rules):
     return os.path.exists(os.path.join(find_collection(collection), 'rules', rules) + ".yml")
 
 
 def load_rules(collection, rules):
-    location = os.path.join(find_collection(collection), 'rules', rules) + ".yml"
+    location = os.path.join(find_collection(
+        collection), 'rules', rules) + ".yml"
     if not os.path.exists(location):
-        raise Exception(f'Cannot find rules {rules} in {collection} at {location}')
+        raise Exception(
+            f'Cannot find rules {rules} in {collection} at {location}')
     with open(location) as f:
         print(f'Loading rules from {location}')
         return yaml.safe_load(f.read())
@@ -68,9 +72,11 @@ def has_tasks(collection, tasks):
 
 
 def load_tasks(collection, tasks):
-    location = os.path.join(find_collection(collection), 'tasks', tasks) + ".yml"
+    location = os.path.join(find_collection(
+        collection), 'tasks', tasks) + ".yml"
     if not os.path.exists(location):
-        raise Exception(f'Cannot find tasks {tasks} in {collection} at {location}')
+        raise Exception(
+            f'Cannot find tasks {tasks} in {collection} at {location}')
     return location
 
 
@@ -79,7 +85,9 @@ def has_service(collection, service):
 
 
 def load_service(collection, service):
-    location = os.path.join(find_collection(collection), 'services', service) + ".yml"
+    location = os.path.join(find_collection(collection),
+                            'services', service) + ".yml"
     if not os.path.exists(location):
-        raise Exception(f'Cannot find service {service} in {collection} at {location}')
+        raise Exception(
+            f'Cannot find service {service} in {collection} at {location}')
     return location

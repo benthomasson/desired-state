@@ -147,27 +147,31 @@ class _Waiting(State):
 
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Waiting'))
-        print("reconciliation_fsm buffered_messages", len(controller.context.buffered_messages))
+        print("reconciliation_fsm buffered_messages",
+              len(controller.context.buffered_messages))
         if not controller.context.buffered_messages.empty():
-            controller.context.queue.put(controller.context.buffered_messages.get())
+            controller.context.queue.put(
+                controller.context.buffered_messages.get())
 
     @transitions('Diff1')
     def onDesiredState(self, controller, message_type, message):
         print('Waiting.onDesiredState')
-        controller.context.new_desired_state = yaml.safe_load(message.desired_state)
-        controller.context.stream.put_message(DesiredState(0, 0, controller.context.new_desired_state))
+        controller.context.new_desired_state = yaml.safe_load(
+            message.desired_state)
+        controller.context.stream.put_message(
+            DesiredState(0, 0, controller.context.new_desired_state))
         controller.changeState(Diff1)
 
     @transitions('Diff1')
     def onActualState(self, controller, message_type, message):
         print('Waiting.onActualState')
-        controller.context.discovered_actual_state = yaml.safe_load(message.actual_state)
+        controller.context.discovered_actual_state = yaml.safe_load(
+            message.actual_state)
         controller.changeState(Diff3)
 
     @transitions('Discover2')
     def onPoll(self, controller, message_type, message):
         controller.changeState(Discover2)
-
 
     def onShutdown(self, controller, message_type, message):
         controller.context.thread.kill()
@@ -182,9 +186,11 @@ class _Diff1(State):
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff1'))
-        controller.context.diff = DeepDiff(controller.context.current_desired_state, controller.context.new_desired_state, ignore_order=True)
+        controller.context.diff = DeepDiff(
+            controller.context.current_desired_state, controller.context.new_desired_state, ignore_order=True)
         pprint(controller.context.diff)
-        controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
+        controller.context.stream.put_message(
+            Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
             controller.changeState(Reconcile1)
@@ -220,7 +226,8 @@ class _Diff3(State):
     @transitions('Waiting')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff3'))
-        controller.context.diff = DeepDiff(controller.context.discovered_actual_state, controller.context.current_desired_state, ignore_order=True)
+        controller.context.diff = DeepDiff(
+            controller.context.discovered_actual_state, controller.context.current_desired_state, ignore_order=True)
         print(controller.context.diff)
 
         if controller.context.diff:
@@ -264,9 +271,11 @@ class _Diff2(State):
     @transitions('Validate1')
     def start(self, controller):
         controller.context.stream.put_message(FSMState('Diff2'))
-        controller.context.diff = DeepDiff(controller.context.new_desired_state, controller.context.discovered_actual_state, ignore_order=True)
+        controller.context.diff = DeepDiff(
+            controller.context.new_desired_state, controller.context.discovered_actual_state, ignore_order=True)
         print(controller.context.diff)
-        controller.context.stream.put_message(Diff(convert_diff(controller.context.diff)))
+        controller.context.stream.put_message(
+            Diff(convert_diff(controller.context.diff)))
 
         if controller.context.diff:
             controller.changeState(Reconcile2)

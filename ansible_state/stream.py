@@ -2,7 +2,6 @@
 import websocket
 import gevent
 import ssl
-import json
 from pprint import pprint
 
 from .messages import Hello, json_serialize, json_deserialize
@@ -24,8 +23,8 @@ class WebsocketChannel(object):
                                              on_error=self.on_error,
                                              on_close=self.on_close,
                                              on_open=self.on_open)
-        self.thread = gevent.spawn(self.socket.run_forever, sslopt={"cert_reqs": ssl.CERT_NONE})
-
+        self.thread = gevent.spawn(self.socket.run_forever, sslopt={
+                                   "cert_reqs": ssl.CERT_NONE})
 
     def put_message(self, message):
         self.put(json_serialize(message))

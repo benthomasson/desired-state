@@ -60,7 +60,6 @@ logger = logging.getLogger('cli')
 
 
 def main(args=None):
-
     '''
     Main function for the CLI.
     '''
@@ -97,7 +96,6 @@ def main(args=None):
 
 
 def inventory(parsed_args, state):
-
     '''
     Loads an inventory
     '''
@@ -118,7 +116,6 @@ def inventory(parsed_args, state):
 
 
 def validate_state(state):
-
     '''
     Validates state using schema if it is found in the meta data of the state.
     '''
@@ -148,7 +145,8 @@ def parse_options(parsed_args):
     else:
         stream = NullChannel()
 
-    project_src = os.path.abspath(os.path.expanduser(parsed_args['--project-src']))
+    project_src = os.path.abspath(
+        os.path.expanduser(parsed_args['--project-src']))
 
     return secrets, project_src, stream
 
@@ -162,7 +160,8 @@ def load_rules_from_args_or_meta(parsed_args, state):
             with open(parsed_args['<rules.yml>']) as f:
                 rules = yaml.safe_load(f.read())
         elif has_rules(*split_collection_name(parsed_args['<rules.yml>'])):
-            rules = load_rules(*split_collection_name(parsed_args['<rules.yml>']))
+            rules = load_rules(
+                *split_collection_name(parsed_args['<rules.yml>']))
         else:
             raise Exception('No rules file found')
     elif meta.rules:
@@ -188,14 +187,14 @@ def ansible_state_control(parsed_args):
     else:
         control_plane = NullChannel()
 
-
     threads = []
 
     if stream.thread:
         threads.append(stream.thread)
 
     tracer = ConsoleTraceLog()
-    control = AnsibleStateControl(tracer, 0, control_id, secrets, stream, control_plane)
+    control = AnsibleStateControl(
+        tracer, 0, control_id, secrets, stream, control_plane)
     control_plane.outbox = control.queue
     threads.append(control.thread)
 
@@ -207,7 +206,6 @@ def ansible_state_control(parsed_args):
 
 
 def ansible_state_monitor(parsed_args):
-
     '''
     Starts the state monitoring green thread.
     '''
@@ -227,7 +225,8 @@ def ansible_state_monitor(parsed_args):
     rules = load_rules_from_args_or_meta(parsed_args, current_desired_state)
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(parsed_args, current_desired_state), stream)
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(
+        parsed_args, current_desired_state), stream)
     threads.append(worker.thread)
     server = ZMQServerChannel(worker.queue, tracer)
     threads.append(server.zmq_thread)
@@ -238,7 +237,6 @@ def ansible_state_monitor(parsed_args):
 
 
 def ansible_state_from_to(parsed_args):
-
     '''
     Calculates the differene in state from initial-state to new-state executes those changes and exits.
     '''
@@ -263,7 +261,8 @@ def ansible_state_from_to(parsed_args):
     rules = load_rules_from_args_or_meta(parsed_args, initial_desired_state)
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(parsed_args, initial_desired_state), stream)
+    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(
+        parsed_args, initial_desired_state), stream)
     threads.append(worker.thread)
     worker.queue.put(DesiredState(0, 0, new_desired_state))
     worker.queue.put(Shutdown())
@@ -272,7 +271,6 @@ def ansible_state_from_to(parsed_args):
 
 
 def ansible_state_update_desired_state(parsed_args):
-
     '''
     Sends a new desired state to the monitor green thread.
     '''
@@ -289,7 +287,6 @@ def ansible_state_update_desired_state(parsed_args):
 
 
 def ansible_state_update_actual_state(parsed_args):
-
     '''
     Sends a new actual state to the monitor green thread.
     '''
@@ -306,7 +303,6 @@ def ansible_state_update_actual_state(parsed_args):
 
 
 def ansible_state_validate(parsed_args):
-
     '''
     Validates a state using the schema and prints a list of errors in the state.
     '''
