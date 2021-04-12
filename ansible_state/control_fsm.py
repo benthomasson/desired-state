@@ -24,7 +24,7 @@ class _Ready(State):
 
     def onServiceInstance(self, controller, message_type, message):
         print(message)
-        controller.context.start_monitor(message)
+        controller.context.start_or_update_monitor(message)
 
 
 Ready = _Ready()

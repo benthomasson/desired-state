@@ -1,6 +1,7 @@
 
 
 import gevent
+import yaml
 from gevent.queue import Queue
 from gevent_fsm.fsm import FSMController, Channel
 
@@ -47,7 +48,7 @@ class AnsibleStateControl(object):
             *split_collection_name(service_instance.schema_name))
         rules = load_rules(*split_collection_name(service_instance.rules_name))
         inventory = service_instance.inventory
-        validate(service_instance.config, schema)
+        validate(yaml.safe_load(service_instance.config), schema)
         # Get schema
         # Get tasks
         # Get inventory
@@ -61,8 +62,8 @@ class AnsibleStateControl(object):
     def update_monitor(self, service_instance):
         schema = load_schema(
             *split_collection_name(service_instance.schema_name))
-        validate(service_instance.config, schema)
-        self.worker[service_instance.id].queue.put(
+        validate(yaml.safe_load(service_instance.config), schema)
+        self.workers[service_instance.id].queue.put(
             DesiredState(0, 0, service_instance.config))
 
     def start_or_update_monitor(self, service_instance):
