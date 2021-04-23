@@ -43,18 +43,26 @@ class AnsibleStateControl(object):
         self.thread = gevent.spawn(self.controller.receive_messages)
 
     def start_monitor(self, service_instance):
-        # Get rules
+        # Get schema
         schema = load_schema(
             *split_collection_name(service_instance.schema_name))
+        print(schema)
+        # Get rules
         rules = load_rules(*split_collection_name(service_instance.rules_name))
-        inventory = service_instance.inventory
-        validate(yaml.safe_load(service_instance.config), schema)
-        # Get schema
-        # Get tasks
+        print(rules)
         # Get inventory
+        inventory = service_instance.inventory
+        print(inventory)
+        validate(yaml.safe_load(service_instance.config), schema)
         project_src = '.'
-        worker = AnsibleStateMonitor(self.tracer, 0, self.secrets, project_src, rules, service_instance.config,
-                                     inventory, self.stream)
+        worker = AnsibleStateMonitor(self.tracer,
+                                     0,
+                                     self.secrets,
+                                     project_src,
+                                     rules,
+                                     yaml.safe_load(service_instance.config),
+                                     inventory,
+                                     self.stream)
         self.workers[service_instance.id] = worker
 
         self.service_instances[service_instance.id] = service_instance
