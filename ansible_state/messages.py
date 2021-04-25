@@ -7,22 +7,38 @@ import datetime
 
 
 def sequence():
+    '''
+    Sequence numbers are associated with a stream.  They are used to determine
+    the order of the messages sent in a stream.
+    '''
     return itertools.count(1)
 
 
 def now():
+    '''
+    Returns a string formatted timestamp for now in UTC time.
+    '''
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
 def serialize(message):
+    '''
+    Serializes a message to YAML format.
+    '''
     return [message.__class__.__name__.encode(), yaml.dump(dict(message._asdict())).encode()]
 
 
 def json_serialize(message):
+    '''
+    Serializes a message to JSON format.
+    '''
     return json.dumps([message.__class__.__name__, dict(message._asdict())]).encode()
 
 
 def json_deserialize(message):
+    '''
+    Deserializes a message from JSON format.
+    '''
     data = json.loads(message)
     if isinstance(data, list):
         msg_type = data[0]
@@ -37,13 +53,13 @@ def json_deserialize(message):
 
 
 Hello = namedtuple('Hello', ['seq_num', 'timestamp'])
-FSMState = namedtuple('FSMState', ['state'])
-Diff = namedtuple('Diff', ['diff'])
-ValidationResult = namedtuple('ValidationResult', ['host', 'result'])
+FSMState = namedtuple('FSMState', ['seq_num', 'timestamp', 'state'])
+Diff = namedtuple('Diff', ['seq_num', 'timestamp', 'diff'])
+ValidationResult = namedtuple('ValidationResult', ['seq_num', 'timestamp', 'host', 'result'])
 ValidationTask = namedtuple(
-    'ValidationTask', ['host', 'task_action', 'result'])
+    'ValidationTask', ['seq_num', 'timestamp', 'host', 'task_action', 'result'])
 
-DesiredState = namedtuple('DesiredState', ['id', 'client_id', 'desired_state'])
+DesiredState = namedtuple('DesiredState', ['seq_num', 'timestamp', 'id', 'client_id', 'desired_state'])
 ActualState = namedtuple('ActualState', ['id', 'client_id', 'actual_state'])
 Poll = namedtuple('Poll', [])
 Complete = namedtuple('Complete', [])
@@ -52,8 +68,8 @@ NoDifference = namedtuple('NoDifference', [])
 Success = namedtuple('Success', [])
 Failure = namedtuple('Failure', [])
 
-Inventory = namedtuple('Inventory', ['inventory'])
-Rules = namedtuple('Rules', ['rules'])
+Inventory = namedtuple('Inventory', ['seq_num', 'timestamp', 'inventory'])
+Rules = namedtuple('Rules', ['seq_num', 'timestamp', 'rules'])
 
 Control = namedtuple('Control', ['seq_num', 'timestamp', 'id'])
 System = namedtuple('System', ['id', 'control_id'])

@@ -23,7 +23,7 @@ Options:
 """
 
 from .stream import WebsocketChannel, NullChannel
-from .messages import DesiredState, ActualState, Shutdown, sequence
+from .messages import DesiredState, ActualState, Shutdown, now
 from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
@@ -133,7 +133,7 @@ def validate_state(state):
         validate(state, schema)
 
 
-def parse_options(sequence, parsed_args):
+def parse_options(parsed_args):
 
     secrets = defaultdict(str)
 
@@ -141,7 +141,7 @@ def parse_options(sequence, parsed_args):
         secrets['become'] = getpass()
 
     if parsed_args['--stream']:
-        stream = WebsocketChannel(sequence, parsed_args['--stream'])
+        stream = WebsocketChannel(parsed_args['--stream'])
     else:
         stream = NullChannel()
 
@@ -179,12 +179,11 @@ def load_rules_from_args_or_meta(parsed_args, state):
 
 
 def ansible_state_control(parsed_args):
-    seq = sequence()
-    secrets, _, stream = parse_options(seq, parsed_args)
+    secrets, _, stream = parse_options(parsed_args)
     control_id = parsed_args['<control-id>'] or str(uuid4())
 
     if parsed_args['--control-plane']:
-        control_plane = WebsocketChannel(seq, parsed_args['--control-plane'])
+        control_plane = WebsocketChannel(parsed_args['--control-plane'])
     else:
         control_plane = NullChannel()
 
@@ -194,7 +193,7 @@ def ansible_state_control(parsed_args):
         threads.append(stream.thread)
 
     tracer = ConsoleTraceLog()
-    control = AnsibleStateControl(seq,
+    control = AnsibleStateControl(
         tracer, 0, control_id, secrets, stream, control_plane)
     control_plane.outbox = control.queue
     threads.append(control.thread)
@@ -265,7 +264,7 @@ def ansible_state_from_to(parsed_args):
     worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(
         parsed_args, initial_desired_state), stream)
     threads.append(worker.thread)
-    worker.queue.put(DesiredState(0, 0, new_desired_state))
+    worker.queue.put(DesiredState(0, now(), 0, 0, new_desired_state))
     worker.queue.put(Shutdown())
     gevent.joinall([worker.thread])
     return 0
@@ -283,7 +282,7 @@ def ansible_state_update_desired_state(parsed_args):
     validate_state(yaml.safe_load(new_state))
 
     client = ZMQClientChannel()
-    client.send(DesiredState(0, 0, new_state))
+    client.send(DesiredState(0, now(), 0, 0, new_state))
     return 0
 
 

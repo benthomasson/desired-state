@@ -12,7 +12,7 @@ from deepdiff import DeepDiff, extract
 
 from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
 from .util import ensure_directory, build_inventory_selector
-from .messages import ValidationResult, ValidationTask
+from .messages import ValidationResult, ValidationTask, now
 from .collection import split_collection_name, has_tasks, load_tasks
 
 
@@ -470,14 +470,14 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
         if data.get('event', '') == 'runner_on_ok':
             event_data = data.get('event_data', {})
             if event_data.get('task_action', '') not in ['include_tasks', 'include_vars']:
-                monitor.stream.put_message(ValidationTask(event_data.get('host'),
+                monitor.stream.put_message(ValidationTask(0, now(), event_data.get('host'),
                                                           event_data.get(
                                                               'task_action', ''),
                                                           'ok'))
         if data.get('event', '') == 'playbook_on_stats':
             event_data = data.get('event_data', {})
             for host in event_data.get('ok', {}).keys():
-                monitor.stream.put_message(ValidationResult(host, 'ok'))
+                monitor.stream.put_message(ValidationResult(0, now(), host, 'ok'))
 
     if not plays:
         return None

@@ -7,7 +7,7 @@ from gevent_fsm.fsm import FSMController, Channel
 
 from . import reconciliation_fsm
 
-from .messages import Inventory, Rules, DesiredState
+from .messages import Inventory, Rules, DesiredState, now
 
 
 def convert_inventory(inventory):
@@ -45,7 +45,7 @@ class AnsibleStateMonitor(object):
         self.controller.outboxes['default'] = Channel(
             self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
-        self.stream.put_message(Inventory(convert_inventory(inventory)))
-        self.stream.put_message(Rules(rules))
-        self.stream.put_message(DesiredState(0, 0, current_desired_state))
+        self.stream.put_message(Inventory(0, now(), convert_inventory(inventory)))
+        self.stream.put_message(Rules(0, now(), rules))
+        self.stream.put_message(DesiredState(0, now(), 0, 0, current_desired_state))
         self.thread = gevent.spawn(self.controller.receive_messages)

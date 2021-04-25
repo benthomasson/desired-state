@@ -25,8 +25,7 @@ class AnsibleStateControl(object):
     working application.
     '''
 
-    def __init__(self, sequence, tracer, fsm_id, control_id, secrets, stream, control_plane):
-        self.sequence = sequence
+    def __init__(self, tracer, fsm_id, control_id, secrets, stream, control_plane):
         self.service_instances = dict()
         self.workers = dict()
         self.control_id = control_id
@@ -40,7 +39,8 @@ class AnsibleStateControl(object):
         self.controller.outboxes['default'] = Channel(
             self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
-        self.control_plane.put_message(Control(next(sequence), now(), self.control_id))
+        self.control_plane.put_message(Control(0, now(), self.control_id))
+        self.stream.put_message(Control(0, now(), self.control_id))
         self.thread = gevent.spawn(self.controller.receive_messages)
 
     def start_monitor(self, service_instance):
@@ -73,7 +73,7 @@ class AnsibleStateControl(object):
             *split_collection_name(service_instance.schema_name))
         validate(yaml.safe_load(service_instance.config), schema)
         self.workers[service_instance.id].queue.put(
-            DesiredState(0, 0, service_instance.config))
+            DesiredState(0, now(), 0, 0, service_instance.config))
 
     def start_or_update_monitor(self, service_instance):
         if service_instance.id in self.workers:
