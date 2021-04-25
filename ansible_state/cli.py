@@ -23,7 +23,7 @@ Options:
 """
 
 from .stream import WebsocketChannel, NullChannel
-from .messages import DesiredState, ActualState, Shutdown
+from .messages import DesiredState, ActualState, Shutdown, sequence
 from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
@@ -133,7 +133,7 @@ def validate_state(state):
         validate(state, schema)
 
 
-def parse_options(parsed_args):
+def parse_options(sequence, parsed_args):
 
     secrets = defaultdict(str)
 
@@ -141,7 +141,7 @@ def parse_options(parsed_args):
         secrets['become'] = getpass()
 
     if parsed_args['--stream']:
-        stream = WebsocketChannel(parsed_args['--stream'])
+        stream = WebsocketChannel(sequence, parsed_args['--stream'])
     else:
         stream = NullChannel()
 
@@ -179,11 +179,12 @@ def load_rules_from_args_or_meta(parsed_args, state):
 
 
 def ansible_state_control(parsed_args):
-    secrets, _, stream = parse_options(parsed_args)
+    seq = sequence()
+    secrets, _, stream = parse_options(seq, parsed_args)
     control_id = parsed_args['<control-id>'] or str(uuid4())
 
     if parsed_args['--control-plane']:
-        control_plane = WebsocketChannel(parsed_args['--control-plane'])
+        control_plane = WebsocketChannel(seq, parsed_args['--control-plane'])
     else:
         control_plane = NullChannel()
 
@@ -193,7 +194,7 @@ def ansible_state_control(parsed_args):
         threads.append(stream.thread)
 
     tracer = ConsoleTraceLog()
-    control = AnsibleStateControl(
+    control = AnsibleStateControl(seq,
         tracer, 0, control_id, secrets, stream, control_plane)
     control_plane.outbox = control.queue
     threads.append(control.thread)

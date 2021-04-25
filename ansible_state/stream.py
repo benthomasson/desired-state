@@ -4,12 +4,13 @@ import gevent
 import ssl
 from pprint import pprint
 
-from .messages import Hello, json_serialize, json_deserialize
+from .messages import Hello, json_serialize, json_deserialize, now
 
 
 class WebsocketChannel(object):
 
-    def __init__(self, address):
+    def __init__(self, sequence, address):
+        self.sequence = sequence
         self.address = address
         self.thread = None
         self.start_socket_thread()
@@ -39,7 +40,7 @@ class WebsocketChannel(object):
     def on_open(self, ws=None):
         print('on_open')
         self.opened = True
-        self.put_message(Hello())
+        self.put_message(Hello(next(self.sequence), now()))
         for message in self.startup_messages:
             self.put(message)
         self.startup_messages = []

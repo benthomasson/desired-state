@@ -2,6 +2,16 @@
 from collections import namedtuple
 import yaml
 import json
+import itertools
+import datetime
+
+
+def sequence():
+    return itertools.count(1)
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
 def serialize(message):
@@ -26,7 +36,7 @@ def json_deserialize(message):
     return None
 
 
-Hello = namedtuple('Hello', [])
+Hello = namedtuple('Hello', ['seq_num', 'timestamp'])
 FSMState = namedtuple('FSMState', ['state'])
 Diff = namedtuple('Diff', ['diff'])
 ValidationResult = namedtuple('ValidationResult', ['host', 'result'])
@@ -45,7 +55,7 @@ Failure = namedtuple('Failure', [])
 Inventory = namedtuple('Inventory', ['inventory'])
 Rules = namedtuple('Rules', ['rules'])
 
-Control = namedtuple('Control', ['id'])
+Control = namedtuple('Control', ['seq_num', 'timestamp', 'id'])
 System = namedtuple('System', ['id', 'control_id'])
 Monitor = namedtuple('Monitor', ['id', 'system_id', 'control_id'])
 

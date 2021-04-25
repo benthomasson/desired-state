@@ -7,7 +7,7 @@ from gevent_fsm.fsm import FSMController, Channel
 
 from . import control_fsm
 
-from .messages import Control, DesiredState
+from .messages import Control, DesiredState, now
 from .monitor import AnsibleStateMonitor
 from .collection import load_rules, load_schema, split_collection_name
 from .validate import validate
@@ -25,7 +25,8 @@ class AnsibleStateControl(object):
     working application.
     '''
 
-    def __init__(self, tracer, fsm_id, control_id, secrets, stream, control_plane):
+    def __init__(self, sequence, tracer, fsm_id, control_id, secrets, stream, control_plane):
+        self.sequence = sequence
         self.service_instances = dict()
         self.workers = dict()
         self.control_id = control_id
@@ -39,7 +40,7 @@ class AnsibleStateControl(object):
         self.controller.outboxes['default'] = Channel(
             self.controller, self.controller, self.tracer, self.buffered_messages)
         self.queue = self.controller.inboxes['default']
-        self.control_plane.put_message(Control(self.control_id))
+        self.control_plane.put_message(Control(next(sequence), now(), self.control_id))
         self.thread = gevent.spawn(self.controller.receive_messages)
 
     def start_monitor(self, service_instance):

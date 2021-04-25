@@ -1,14 +1,32 @@
 
 
 from ansible_state.messages import json_serialize, json_deserialize, Hello, Control
+from ansible_state.messages import sequence, now
+
+import datetime
+
 
 def test_hello():
-    s = json_serialize(Hello())
+    t = now()
+    s = json_serialize(Hello(0, t))
     o = json_deserialize(s)
-    assert o == Hello()
+    assert o == Hello(0, t)
 
 
 def test_control():
-    s = json_serialize(Control(5))
+    t = now()
+    s = json_serialize(Control(0, t, 5))
     o = json_deserialize(s)
-    assert o == Control(5)
+    assert o == Control(0, t, 5)
+
+
+def test_sequence():
+    s = sequence()
+    assert next(s) == 1
+    assert next(s) == 2
+
+
+def test_now():
+    t = now()
+    assert isinstance(t, str)
+    assert datetime.datetime.fromisoformat(t)
