@@ -7,17 +7,13 @@ import json
 import re
 import glob
 import ansible_runner
-from pprint import pprint, pformat
+from pprint import pprint
 from deepdiff import DeepDiff, extract
 
 from .rule import select_rules_recursive, Action, ACTION_RULES, get_rule_action_subtree, deduplicate_rules
 from .util import ensure_directory, build_inventory_selector
-from .messages import ValidationResult, ValidationTask, now
+from .messages import ValidationResult, ValidationTask, now, Stdout
 from .collection import split_collection_name, has_tasks, load_tasks
-
-
-def null_message_processor(data):
-    pass
 
 
 def convert_diff(diff):
@@ -152,7 +148,7 @@ class PlaybookRunner:
             f.write(self.inventory)
 
     def start_ansible_playbook(self):
-        print('start_ansible_playbook')
+        # print('start_ansible_playbook')
         ansible_runner.run(private_data_dir=self.temp_dir,
                            playbook="playbook.yml",
                            quiet=True,
@@ -161,22 +157,22 @@ class PlaybookRunner:
                            cancel_callback=self.cancel_callback,
                            finished_callback=self.finished_callback,
                            event_handler=self.runner_process_message)
-        print('spawned ansible runner')
+        # print('finished ansible runner')
         print(self.temp_dir)
 
     def cancel_callback(self):
-        print('cancel_callback called')
+        # print('cancel_callback called')
         return self.shutdown_requested
 
     def finished_callback(self, runner):
-        print('finished_callback called')
+        # print('finished_callback called')
         self.shutdown = True
 
     def runner_process_message(self, data):
         # if data.get('event', '') == 'runner_on_ok':
-        print("runner message:\n{}".format(pformat(data)))
+        # print("runner message:\n{}".format(pformat(data)))
         self.message_processor(data)
-        print(data.get('stdout', ''))
+        # print(data.get('stdout', ''))
 
     def read_result(self):
         artifacts = glob.glob(os.path.join(
@@ -207,7 +203,7 @@ def find_tasks(file_or_collection):
     return task_file
 
 
-def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
+def ansible_state_diff(monitor, secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
     '''
     ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
     between two version of state: current_desired_state and new_desired_state.
@@ -304,7 +300,10 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
             ran_rules.append(
                 (rule, changed_subtree_path, subtree, inventory_name))
 
-    PlaybookRunner(null_message_processor,
+    def runner_process_message(data):
+        monitor.stream.put_message(Stdout(0, now(), data.get('stdout', '')))
+
+    PlaybookRunner(runner_process_message,
                    new_desired_state,
                    diff,
                    destructured_vars_list,
@@ -316,7 +315,7 @@ def ansible_state_diff(secrets, project_src, current_desired_state, new_desired_
     return ran_rules
 
 
-def ansible_state_discovery(secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
+def ansible_state_discovery(monitor, secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
 
     # Discovers the state of a subset of a system
 
@@ -368,7 +367,10 @@ def ansible_state_discovery(secrets, project_src, current_desired_state, new_des
     if not plays:
         return new_discovered_state
 
-    runner = PlaybookRunner(null_message_processor,
+    def runner_process_message(data):
+        monitor.stream.put_message(Stdout(0, now(), data.get('stdout', '')))
+
+    runner = PlaybookRunner(runner_process_message,
                             new_desired_state,
                             diff,
                             destructured_vars_list,

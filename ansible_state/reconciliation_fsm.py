@@ -42,7 +42,8 @@ class _Discover1(State):
 
         monitor = controller.context
 
-        monitor.discovered_actual_state = ansible_state_discovery(monitor.secrets,
+        monitor.discovered_actual_state = ansible_state_discovery(monitor,
+                                                                  monitor.secrets,
                                                                   monitor.project_src,
                                                                   monitor.current_desired_state,
                                                                   monitor.new_desired_state,
@@ -74,7 +75,8 @@ class _Reconcile1(State):
 
         monitor = controller.context
 
-        monitor.ran_rules = ansible_state_diff(monitor.secrets,
+        monitor.ran_rules = ansible_state_diff(monitor,
+                                               monitor.secrets,
                                                monitor.project_src,
                                                monitor.current_desired_state,
                                                monitor.new_desired_state,
@@ -100,7 +102,8 @@ class _Reconcile2(State):
 
         monitor = controller.context
 
-        result = ansible_state_diff(monitor.secrets,
+        result = ansible_state_diff(monitor,
+                                    monitor.secrets,
                                     monitor.project_src,
                                     monitor.discovered_actual_state,
                                     monitor.new_desired_state,
@@ -126,7 +129,8 @@ class _Reconcile3(State):
 
         monitor = controller.context
 
-        result = ansible_state_diff(monitor.secrets,
+        result = ansible_state_diff(monitor,
+                                    monitor.secrets,
                                     monitor.project_src,
                                     monitor.discovered_actual_state,
                                     monitor.current_desired_state,

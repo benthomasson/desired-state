@@ -58,6 +58,8 @@ Diff = namedtuple('Diff', ['seq_num', 'timestamp', 'diff'])
 ValidationResult = namedtuple('ValidationResult', ['seq_num', 'timestamp', 'host', 'result'])
 ValidationTask = namedtuple(
     'ValidationTask', ['seq_num', 'timestamp', 'host', 'task_action', 'result'])
+Stdout = namedtuple('Stdout', ['seq_num', 'timestamp', 'stdout'])
+
 
 DesiredState = namedtuple('DesiredState', ['seq_num', 'timestamp', 'id', 'client_id', 'desired_state'])
 ActualState = namedtuple('ActualState', ['id', 'client_id', 'actual_state'])
