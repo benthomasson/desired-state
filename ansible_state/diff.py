@@ -481,6 +481,8 @@ def ansible_state_validation(monitor, secrets, project_src, current_state, ran_r
             for host in event_data.get('ok', {}).keys():
                 monitor.stream.put_message(ValidationResult(0, now(), host, 'ok'))
 
+        monitor.stream.put_message(Stdout(0, now(), data.get('stdout', '')))
+
     if not plays:
         return None
 
