@@ -13,6 +13,7 @@ class WebsocketChannel(object):
         self.sequence = sequence()
         self.address = address
         self.thread = None
+        self.reconnect_callback = None
         self.start_socket_thread()
         self.startup_messages = []
         self.opened = False
@@ -20,6 +21,7 @@ class WebsocketChannel(object):
         self.put_message(Hello(0, now()))
 
     def start_socket_thread(self):
+        print('start_socket_thread')
         self.socket = websocket.WebSocketApp(self.address,
                                              on_message=self.on_message,
                                              on_error=self.on_error,
@@ -56,7 +58,13 @@ class WebsocketChannel(object):
 
     def on_close(self, ws=None):
         print('on_close')
-        self.thread.kill()
+        self.opened = False
+        old_thread = self.thread
+        self.start_socket_thread()
+        self.put_message(Hello(0, now()))
+        if self.reconnect_callback:
+            self.reconnect_callback(self)
+        old_thread.kill()
 
     def on_error(self, ws=None, error=None):
         print('WebsocketChannel on_error', error)

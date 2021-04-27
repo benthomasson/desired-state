@@ -41,7 +41,12 @@ class AnsibleStateControl(object):
         self.queue = self.controller.inboxes['default']
         self.control_plane.put_message(Control(0, now(), self.control_id))
         self.stream.put_message(Control(0, now(), self.control_id))
+        self.control_plane.reconnect_callback = self.reconnect
+        self.stream.reconnect_callback = self.reconnect
         self.thread = gevent.spawn(self.controller.receive_messages)
+
+    def reconnect(self, stream):
+        stream.put_message(Control(0, now(), self.control_id))
 
     def start_monitor(self, service_instance):
         # Get schema
