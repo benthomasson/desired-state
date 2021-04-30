@@ -1,6 +1,6 @@
 
 
-# Ansible Desired State Configuration
+# Desired State Configuration
 
 Desired state configuration allows users to focus on what they
 want instead of how to make it so.  This simplifies automation
