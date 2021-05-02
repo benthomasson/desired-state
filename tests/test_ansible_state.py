@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-"""Tests for `ansible_state` package."""
+"""Tests for `desired_state` package."""
 
 import pytest
 
 
-from ansible_state import ansible_state
+from desired_state import desired_state
 
 
 @pytest.fixture

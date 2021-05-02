@@ -3,7 +3,7 @@ from gevent_fsm.fsm import State, transitions
 import yaml
 from deepdiff import DeepDiff
 from pprint import pprint
-from .diff import ansible_state_diff, ansible_state_discovery, ansible_state_validation, convert_diff
+from .diff import desired_state_diff, desired_state_discovery, desired_state_validation, convert_diff
 from .messages import FSMState, DesiredState, Diff, now
 
 
@@ -18,7 +18,7 @@ class _Validate1(State):
 
         monitor = controller.context
 
-        monitor.operational_actual_state = ansible_state_validation(monitor,
+        monitor.operational_actual_state = desired_state_validation(monitor,
                                                                     monitor.secrets,
                                                                     monitor.project_src,
                                                                     monitor.new_desired_state,
@@ -42,7 +42,7 @@ class _Discover1(State):
 
         monitor = controller.context
 
-        monitor.discovered_actual_state = ansible_state_discovery(monitor,
+        monitor.discovered_actual_state = desired_state_discovery(monitor,
                                                                   monitor.secrets,
                                                                   monitor.project_src,
                                                                   monitor.current_desired_state,
@@ -75,7 +75,7 @@ class _Reconcile1(State):
 
         monitor = controller.context
 
-        monitor.ran_rules = ansible_state_diff(monitor,
+        monitor.ran_rules = desired_state_diff(monitor,
                                                monitor.secrets,
                                                monitor.project_src,
                                                monitor.current_desired_state,
@@ -102,7 +102,7 @@ class _Reconcile2(State):
 
         monitor = controller.context
 
-        result = ansible_state_diff(monitor,
+        result = desired_state_diff(monitor,
                                     monitor.secrets,
                                     monitor.project_src,
                                     monitor.discovered_actual_state,
@@ -129,7 +129,7 @@ class _Reconcile3(State):
 
         monitor = controller.context
 
-        result = ansible_state_diff(monitor,
+        result = desired_state_diff(monitor,
                                     monitor.secrets,
                                     monitor.project_src,
                                     monitor.discovered_actual_state,

@@ -1,6 +1,6 @@
 
 
-from ansible_state.rule import build_rule_selector
+from desired_state.rule import build_rule_selector
 
 
 

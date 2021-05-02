@@ -1,4 +1,4 @@
-"""Top-level package for ansible-state."""
+"""Top-level package for desired-state."""
 
 __author__ = """Ben Thomasson"""
 __email__ = 'bthomass@redhat.com'

@@ -6,9 +6,9 @@ import os
 
 import yaml
 
-from ansible_state.util import make_matcher
-from ansible_state.rule import select_rules, select_rules_recursive, Action
-from ansible_state.diff import deduplicate_rules, get_rule_action_subtree
+from desired_state.util import make_matcher
+from desired_state.rule import select_rules, select_rules_recursive, Action
+from desired_state.diff import deduplicate_rules, get_rule_action_subtree
 
 from pprint import pformat
 

@@ -1,13 +1,13 @@
-Ansible Desired State Documenation
+Desired State Documenation
 ==================================
 
 
-About Ansible Desired State
+About Desired State
 ---------------------------
 
-Ansible desired state allows you automate your systems by telling
-the automation what state you want that system to be in.   Ansible
-desired state will detect the differences in the state of the system
+Desired state allows you automate your systems by telling
+the automation what state you want that system to be in.   
+Desired state will detect the differences in the state of the system
 and make only the changes that are necessary to acheive your desired
 state.
 
@@ -15,10 +15,10 @@ This makes Ansible much more powerful and scalable than using playbooks
 or roles that will touch every host and run every task  every time they
 are run.
 
-Ansible desired state reads state definition files and calculates
+Desired state reads state definition files and calculates
 the difference between the current state and the new desired state.
-Then Ansible desired state uses change rules to determine how to make
-the system reflect the desired state.  Ansible desired state is completely
+Then desired state uses change rules to determine how to make
+the system reflect the desired state.  Desired state is completely
 customizable and you can define the state definition using any valid
 YAML file.  The YAML file should be a description of your system.
 If you have used Ansible previously think of a vars file as your state description file.
@@ -29,7 +29,7 @@ be understandable by anyone, not just people who have used Ansible before.
 YAML syntax is easy to read and moderately easy to write and edit given
 an editor that helps with the spacing.
 
-Change rules tell Ansible desired state what to do when a part of the
+Change rules tell desired state what to do when a part of the
 state description changes.  The change rules `fire` when they match
 something that has changed in the state of the system or in the desired
 state.  When the rule `fires` it will run a series of tasks or a role
@@ -89,7 +89,7 @@ changes in the system state and listen for changes in the desired state.
 
 .. code-block:: bash
 
-    $ ansible-state monitor initial_state.yml --inventory inventory.yml
+    $ desired-state monitor initial_state.yml --inventory inventory.yml
 
 
 Now write a new version of the desired state with the changes that we want to
@@ -113,7 +113,7 @@ Then in another window update the desired state by sending a message to the moni
 
 .. code-block:: bash
 
-    $ ansible-state update-desired-state desired_state.yml
+    $ desired-state update-desired-state desired_state.yml
 
 This will calculate the changes that need to made to your system, update the system,
 and verify that it is working correctly.
@@ -225,7 +225,7 @@ monitor process with an initial state, the rules, and inventory.
 
 .. code-block:: bash
 
-    $ ansible-state monitor initial_state.yml rules.yml --inventory inventory.yml
+    $ desired-state monitor initial_state.yml rules.yml --inventory inventory.yml
 
 
 To make changes to the system we send the full desired state and the changes
@@ -234,7 +234,7 @@ and validation will be run if any is provided.
 
 .. code-block:: bash
 
-    $ ansible-state update-desired-state desired_state.yml
+    $ desired-state update-desired-state desired_state.yml
 
 Creating your own Desired State Enabled Collection
 ``````````````````````````````````````````````````

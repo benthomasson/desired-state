@@ -4,7 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
-SPHINXPROJ    = ansible_state
+SPHINXPROJ    = desired_state
 SOURCEDIR     = .
 BUILDDIR      = _build
 

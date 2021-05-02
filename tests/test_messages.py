@@ -1,7 +1,7 @@
 
 
-from ansible_state.messages import json_serialize, json_deserialize, Hello, Control
-from ansible_state.messages import sequence, now
+from desired_state.messages import json_serialize, json_deserialize, Hello, Control
+from desired_state.messages import sequence, now
 
 import datetime
 

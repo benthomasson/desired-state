@@ -1,6 +1,6 @@
 
 
-from ansible_state.collection import find_collection
+from desired_state.collection import find_collection
 
 
 def test_find_collection():

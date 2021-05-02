@@ -35,26 +35,26 @@ This project uses event driven programming using finite state machines
 to provide deterministic and correct behavior.  This allows the project
 to react to external events easily.
 
-The entry point for the CLI commands is located the [cli.py](ansible_state/cli.py) file.
+The entry point for the CLI commands is located the [cli.py](desired_state/cli.py) file.
 
-Message types between finite state machines are defined in [messages.py](ansible_state/messages.py).
+Message types between finite state machines are defined in [messages.py](desired_state/messages.py).
 
 The reconciliation loop is defined as a finite state machine in
-[reconciliation_fsm.py](ansible_state/reconciliation_fsm.py)
+[reconciliation_fsm.py](desired_state/reconciliation_fsm.py)
 
 The main monitor process which contains the reconciliation loop is defined
-in [monitor.py](ansible_state/monitor.py)
+in [monitor.py](desired_state/monitor.py)
 
-The generation of playbooks based on the differences between states is defined in [diff.py](ansible_state/diff.py).
+The generation of playbooks based on the differences between states is defined in [diff.py](desired_state/diff.py).
 
-Selection of appropriate change rules based on state diff is defined in [rule.py](ansible_state/rule.py)
+Selection of appropriate change rules based on state diff is defined in [rule.py](desired_state/rule.py)
 
 A client/server implementation for injecting desired state into the monitor process is defined
-in the [client.py](ansible_state/client.py) and [server.py](ansible_state/server.py) files.
+in the [client.py](desired_state/client.py) and [server.py](desired_state/server.py) files.
 
-Collection support is defined in [collection.py](ansible_state/collection.py).
+Collection support is defined in [collection.py](desired_state/collection.py).
 
-Streaming telemetry is defined in [stream.py](ansible_state/stream.py).
+Streaming telemetry is defined in [stream.py](desired_state/stream.py).
 
-State schema validation is provided in [validate.py](ansible_state/validate.py).
+State schema validation is provided in [validate.py](desired_state/validate.py).
 

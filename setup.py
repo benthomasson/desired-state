@@ -4,7 +4,7 @@
 
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
@@ -36,18 +36,18 @@ setup(
     license="Apache Software License 2.0",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='ansible_state',
-    name='ansible_state',
-    packages=find_packages(include=['ansible_state', 'ansible_state.*']),
+    keywords='desired_state',
+    name='desired_state',
+    packages=find_packages(include=['desired_state', 'desired_state.*']),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/benthomasson/ansible_state',
+    url='https://github.com/benthomasson/desired_state',
     version='0.1.0',
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'ansible-state = ansible_state.cli:main',
+            'desired-state = desired_state.cli:main',
         ],
     }
 )

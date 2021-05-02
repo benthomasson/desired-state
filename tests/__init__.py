@@ -1,1 +1,1 @@
-"""Unit test package for ansible_state."""
+"""Unit test package for desired_state."""

@@ -18,7 +18,7 @@ def convert_inventory(inventory):
     return inventory
 
 
-class AnsibleStateMonitor(object):
+class DesiredStateMonitor(object):
 
     '''
     A monitor is a green thread FSM that monitors the lifecycle of one

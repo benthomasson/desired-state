@@ -1,6 +1,6 @@
 
 import pytest
-from ansible_state.validate import validate, get_errors, ValidationError
+from desired_state.validate import validate, get_errors, ValidationError
 
 
 def test_validate_empty():

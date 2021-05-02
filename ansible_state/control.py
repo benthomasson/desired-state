@@ -8,12 +8,12 @@ from gevent_fsm.fsm import FSMController, Channel
 from . import control_fsm
 
 from .messages import Control, DesiredState, now
-from .monitor import AnsibleStateMonitor
+from .monitor import DesiredStateMonitor
 from .collection import load_rules, load_schema, split_collection_name
 from .validate import validate
 
 
-class AnsibleStateControl(object):
+class DesiredStateControl(object):
 
     '''
     A control is a green thread FSM that controls multiple monitors (monitor.py) in one or more
@@ -61,7 +61,7 @@ class AnsibleStateControl(object):
         print(inventory)
         validate(yaml.safe_load(service_instance.config), schema)
         project_src = '.'
-        worker = AnsibleStateMonitor(self.tracer,
+        worker = DesiredStateMonitor(self.tracer,
                                      0,
                                      self.secrets,
                                      project_src,

@@ -2,6 +2,6 @@
 Usage
 =====
 
-To use ansible-state in a project::
+To use desired-state in a project::
 
-    import ansible_state
+    import desired_state

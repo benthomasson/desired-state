@@ -2,12 +2,12 @@
 
 """
 Usage:
-    ansible-state [options] control [<control-id>]
-    ansible-state [options] monitor <current-state.yml> [<rules.yml>]
-    ansible-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
-    ansible-state [options] update-desired-state <new-state.yml>
-    ansible-state [options] update-actual-state <new-state.yml>
-    ansible-state [options] validate <state.yml> <schema.yml>
+    desired-state [options] control [<control-id>]
+    desired-state [options] monitor <current-state.yml> [<rules.yml>]
+    desired-state [options] from <initial-state.yml> to <new-state.yml> [<rules.yml>]
+    desired-state [options] update-desired-state <new-state.yml>
+    desired-state [options] update-actual-state <new-state.yml>
+    desired-state [options] validate <state.yml> <schema.yml>
 
 Options:
     -h, --help              Show this page
@@ -27,8 +27,8 @@ from .messages import DesiredState, ActualState, Shutdown, now
 from .util import ConsoleTraceLog, check_state
 from .server import ZMQServerChannel
 from .client import ZMQClientChannel
-from .monitor import AnsibleStateMonitor
-from .control import AnsibleStateControl
+from .monitor import DesiredStateMonitor
+from .control import DesiredStateControl
 from .validate import get_errors, validate
 from .collection import split_collection_name, has_rules, has_schema, load_rules, load_schema
 from .types import get_meta
@@ -48,13 +48,10 @@ monkey.patch_all()
 
 
 FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
-logging.basicConfig(filename='ansible_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
+logging.basicConfig(filename='/tmp/desired_state.log', level=logging.DEBUG, format=FORMAT)  # noqa
 logging.debug('Logging started')
 logging.debug('Loading runner')
 logging.debug('Loaded runner')
-
-FORMAT = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
-logging.basicConfig(filename='ansible_fsm.log', level=logging.DEBUG, format=FORMAT)  # noqa
 
 logger = logging.getLogger('cli')
 
@@ -80,17 +77,17 @@ def main(args=None):
         os.chdir(parsed_args['--cwd'])
 
     if parsed_args['control']:
-        return ansible_state_control(parsed_args)
+        return desired_state_control(parsed_args)
     elif parsed_args['monitor']:
-        return ansible_state_monitor(parsed_args)
+        return desired_state_monitor(parsed_args)
     elif parsed_args['from'] and parsed_args['to']:
-        return ansible_state_from_to(parsed_args)
+        return desired_state_from_to(parsed_args)
     elif parsed_args['update-desired-state']:
-        return ansible_state_update_desired_state(parsed_args)
+        return desired_state_update_desired_state(parsed_args)
     elif parsed_args['update-actual-state']:
-        return ansible_state_update_actual_state(parsed_args)
+        return desired_state_update_actual_state(parsed_args)
     elif parsed_args['validate']:
-        return ansible_state_validate(parsed_args)
+        return desired_state_validate(parsed_args)
     else:
         assert False, 'Update the docopt'
 
@@ -178,7 +175,7 @@ def load_rules_from_args_or_meta(parsed_args, state):
     return rules
 
 
-def ansible_state_control(parsed_args):
+def desired_state_control(parsed_args):
     secrets, _, stream = parse_options(parsed_args)
     control_id = parsed_args['<control-id>'] or str(uuid4())
 
@@ -193,7 +190,7 @@ def ansible_state_control(parsed_args):
         threads.append(stream.thread)
 
     tracer = ConsoleTraceLog()
-    control = AnsibleStateControl(
+    control = DesiredStateControl(
         tracer, 0, control_id, secrets, stream, control_plane)
     control_plane.outbox = control.queue
     threads.append(control.thread)
@@ -205,7 +202,7 @@ def ansible_state_control(parsed_args):
     gevent.joinall(threads)
 
 
-def ansible_state_monitor(parsed_args):
+def desired_state_monitor(parsed_args):
     '''
     Starts the state monitoring green thread.
     '''
@@ -225,7 +222,7 @@ def ansible_state_monitor(parsed_args):
     rules = load_rules_from_args_or_meta(parsed_args, current_desired_state)
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(
+    worker = DesiredStateMonitor(tracer, 0, secrets, project_src, rules, current_desired_state, inventory(
         parsed_args, current_desired_state), stream)
     threads.append(worker.thread)
     server = ZMQServerChannel(worker.queue, tracer)
@@ -236,7 +233,7 @@ def ansible_state_monitor(parsed_args):
     return 0
 
 
-def ansible_state_from_to(parsed_args):
+def desired_state_from_to(parsed_args):
     '''
     Calculates the differene in state from initial-state to new-state executes those changes and exits.
     '''
@@ -261,7 +258,7 @@ def ansible_state_from_to(parsed_args):
     rules = load_rules_from_args_or_meta(parsed_args, initial_desired_state)
 
     tracer = ConsoleTraceLog()
-    worker = AnsibleStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(
+    worker = DesiredStateMonitor(tracer, 0, secrets, project_src, rules, initial_desired_state, inventory(
         parsed_args, initial_desired_state), stream)
     threads.append(worker.thread)
     worker.queue.put(DesiredState(0, now(), 0, 0, new_desired_state))
@@ -270,7 +267,7 @@ def ansible_state_from_to(parsed_args):
     return 0
 
 
-def ansible_state_update_desired_state(parsed_args):
+def desired_state_update_desired_state(parsed_args):
     '''
     Sends a new desired state to the monitor green thread.
     '''
@@ -286,7 +283,7 @@ def ansible_state_update_desired_state(parsed_args):
     return 0
 
 
-def ansible_state_update_actual_state(parsed_args):
+def desired_state_update_actual_state(parsed_args):
     '''
     Sends a new actual state to the monitor green thread.
     '''
@@ -302,7 +299,7 @@ def ansible_state_update_actual_state(parsed_args):
     return 0
 
 
-def ansible_state_validate(parsed_args):
+def desired_state_validate(parsed_args):
     '''
     Validates a state using the schema and prints a list of errors in the state.
     '''
@@ -318,3 +315,9 @@ def ansible_state_validate(parsed_args):
     else:
         return 0
     return 1
+
+
+
+if __name__ == "__main__":
+    main()
+

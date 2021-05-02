@@ -93,7 +93,8 @@ ServiceInstance = namedtuple('ServiceInstance', ['id',
                                                  'collection',
                                                  'service_name',
                                                  'schema_name',
-                                                 'rules_name'])
+                                                 'rules_name',
+                                                 'status'])
 
 msg_types = {x.__name__: x for x in [
     DesiredState, ActualState, Hello, Control, ServiceInstance]}

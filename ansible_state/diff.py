@@ -72,7 +72,7 @@ class PlaybookRunner:
         return self.read_result()
 
     def build_project_directory(self):
-        self.temp_dir = tempfile.mkdtemp(prefix="ansible_state_playbook")
+        self.temp_dir = tempfile.mkdtemp(prefix="desired_state_playbook")
         print(self.temp_dir)
         ensure_directory(os.path.join(self.temp_dir, 'env'))
         ensure_directory(os.path.join(self.temp_dir, 'project'))
@@ -203,9 +203,9 @@ def find_tasks(file_or_collection):
     return task_file
 
 
-def ansible_state_diff(monitor, secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
+def desired_state_diff(monitor, secrets, project_src, current_desired_state, new_desired_state, rules, inventory, explain):
     '''
-    ansible_state_diff creates playbooks and runs them with ansible-runner to implement the differences
+    desired_state_diff creates playbooks and runs them with ansible-runner to implement the differences
     between two version of state: current_desired_state and new_desired_state.
     '''
 
@@ -315,7 +315,7 @@ def ansible_state_diff(monitor, secrets, project_src, current_desired_state, new
     return ran_rules
 
 
-def ansible_state_discovery(monitor, secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
+def desired_state_discovery(monitor, secrets, project_src, current_desired_state, new_desired_state, ran_rules, inventory, explain):
 
     # Discovers the state of a subset of a system
 
@@ -432,7 +432,7 @@ def destructure_vars(rule, subtree):
     return destructured_vars
 
 
-def ansible_state_validation(monitor, secrets, project_src, current_state, ran_rules, inventory, explain):
+def desired_state_validation(monitor, secrets, project_src, current_state, ran_rules, inventory, explain):
 
     plays = []
 

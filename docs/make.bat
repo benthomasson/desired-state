@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=ansible_state
+set SPHINXPROJ=desired_state
 
 if "%1" == "" goto help
 
